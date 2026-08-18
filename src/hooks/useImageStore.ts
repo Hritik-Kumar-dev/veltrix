@@ -1,45 +1,61 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { ImageItem, CropData, ImageStatus } from '../types';
+import type { ImageItem, CropData, ImageStatus, RenameConfig } from '../types';
+import { DEFAULT_RENAME_CONFIG } from '../types';
 
 const STORAGE_KEY = 'narayan_image_store';
-const MAX_STORAGE_IMAGES = 200; // guard against quota errors
+const RENAME_KEY  = 'narayan_rename_config';
+const MAX_STORAGE_IMAGES = 200;
 
 // ------------------------------------------------------------------
 // Persistence helpers
 // ------------------------------------------------------------------
 
-function loadFromStorage(): ImageItem[] {
+function loadImages(): ImageItem[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as ImageItem[];
+    return raw ? (JSON.parse(raw) as ImageItem[]) : [];
   } catch {
     return [];
   }
 }
 
-function saveToStorage(images: ImageItem[]): void {
+function saveImages(images: ImageItem[]): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(images));
   } catch (e) {
-    // Quota exceeded – silently swallow; data will be in-memory only
     console.warn('LocalStorage quota exceeded', e);
   }
 }
 
+function loadRenameConfig(): RenameConfig {
+  try {
+    const raw = localStorage.getItem(RENAME_KEY);
+    return raw ? { ...DEFAULT_RENAME_CONFIG, ...(JSON.parse(raw) as RenameConfig) } : DEFAULT_RENAME_CONFIG;
+  } catch {
+    return DEFAULT_RENAME_CONFIG;
+  }
+}
+
+function saveRenameConfig(cfg: RenameConfig): void {
+  try {
+    localStorage.setItem(RENAME_KEY, JSON.stringify(cfg));
+  } catch { /* swallow */ }
+}
+
 // ------------------------------------------------------------------
-// Hook
+// Hook interface
 // ------------------------------------------------------------------
 
 export interface UseImageStore {
   images: ImageItem[];
   activeId: string | null;
   activeImage: ImageItem | null;
+  renameConfig: RenameConfig;
   /** Add many images at once (accepts File objects) */
   addImages: (files: File[]) => Promise<void>;
   /** Select which image is being edited */
   setActiveId: (id: string | null) => void;
-  /** Persist crop/rotate state and mark image as done; optionally advance to next */
+  /** Persist crop/rotate state and mark image as done */
   saveImage: (id: string, cropData: CropData, processedDataUrl: string) => void;
   /** Move active selection to the next pending/editing image */
   goToNext: () => void;
@@ -47,7 +63,13 @@ export interface UseImageStore {
   removeImage: (id: string) => void;
   /** Reset status of a done image back to pending */
   resetImage: (id: string) => void;
-  /** Clear all images */
+  /** Reorder: move image at fromIndex to toIndex */
+  reorderImages: (fromIndex: number, toIndex: number) => void;
+  /** Update the rename configuration */
+  setRenameConfig: (cfg: RenameConfig) => void;
+  /** Reset rename config to defaults (preserves edit state) */
+  resetRenameConfig: () => void;
+  /** Clear all images AND rename config */
   clearAll: () => void;
   /** Count helpers */
   doneCount: number;
@@ -63,18 +85,23 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
+// ------------------------------------------------------------------
+// Hook
+// ------------------------------------------------------------------
+
 export function useImageStore(): UseImageStore {
-  const [images, setImages] = useState<ImageItem[]>(() => loadFromStorage());
+  const [images, setImages] = useState<ImageItem[]>(() => loadImages());
   const [activeId, setActiveIdState] = useState<string | null>(() => {
-    // Restore to the first non-done image
-    const saved = loadFromStorage();
+    const saved = loadImages();
     return saved.find((img) => img.status !== 'done')?.id ?? saved[0]?.id ?? null;
   });
+  const [renameConfig, setRenameConfigState] = useState<RenameConfig>(() => loadRenameConfig());
 
-  // Persist whenever images change
-  useEffect(() => {
-    saveToStorage(images);
-  }, [images]);
+  // Persist images
+  useEffect(() => { saveImages(images); }, [images]);
+
+  // Persist rename config
+  useEffect(() => { saveRenameConfig(renameConfig); }, [renameConfig]);
 
   // ------------------------------------------------------------------
   // Actions
@@ -98,17 +125,8 @@ export function useImageStore(): UseImageStore {
       })
     );
 
-    setImages((prev) => {
-      // Deduplicate by name+size is not reliable for images, so just append
-      const next = [...prev, ...newItems].slice(-MAX_STORAGE_IMAGES);
-      return next;
-    });
-
-    // Auto-select first new image if nothing is selected
-    setActiveIdState((prev) => {
-      if (prev) return prev;
-      return newItems[0]?.id ?? null;
-    });
+    setImages((prev) => [...prev, ...newItems].slice(-MAX_STORAGE_IMAGES));
+    setActiveIdState((prev) => prev ?? newItems[0]?.id ?? null);
   }, []);
 
   const setActiveId = useCallback((id: string | null) => {
@@ -129,13 +147,7 @@ export function useImageStore(): UseImageStore {
       setImages((prev) =>
         prev.map((img) =>
           img.id === id
-            ? {
-                ...img,
-                cropData,
-                processedDataUrl,
-                status: 'done',
-                doneAt: Date.now(),
-              }
+            ? { ...img, cropData, processedDataUrl, status: 'done', doneAt: Date.now() }
             : img
         )
       );
@@ -146,16 +158,12 @@ export function useImageStore(): UseImageStore {
   const goToNext = useCallback(() => {
     setImages((prev) => {
       const currentIndex = prev.findIndex((img) => img.id === activeId);
-      // Find next non-done image after current
       const nextImg =
-        prev
-          .slice(currentIndex + 1)
-          .find((img) => img.status !== 'done') ??
+        prev.slice(currentIndex + 1).find((img) => img.status !== 'done') ??
         prev.find((img) => img.status !== 'done' && img.id !== activeId);
 
       if (nextImg) {
         setActiveIdState(nextImg.id);
-        // Mark as editing
         return prev.map((img) =>
           img.id === nextImg.id && img.status === 'pending'
             ? { ...img, status: 'editing' }
@@ -168,40 +176,45 @@ export function useImageStore(): UseImageStore {
 
   const removeImage = useCallback(
     (id: string) => {
-      setImages((prev) => {
-        const next = prev.filter((img) => img.id !== id);
-        return next;
-      });
-      if (activeId === id) {
-        setActiveIdState((prev) => {
-          if (prev !== id) return prev;
-          return null;
-        });
-      }
+      setImages((prev) => prev.filter((img) => img.id !== id));
+      setActiveIdState((prev) => (prev === id ? null : prev));
     },
-    [activeId]
+    []
   );
 
   const resetImage = useCallback((id: string) => {
     setImages((prev) =>
       prev.map((img) =>
         img.id === id
-          ? {
-              ...img,
-              status: 'pending',
-              processedDataUrl: null,
-              cropData: null,
-              doneAt: null,
-            }
+          ? { ...img, status: 'pending', processedDataUrl: null, cropData: null, doneAt: null }
           : img
       )
     );
+  }, []);
+
+  const reorderImages = useCallback((fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+    setImages((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  }, []);
+
+  const setRenameConfig = useCallback((cfg: RenameConfig) => {
+    setRenameConfigState(cfg);
+  }, []);
+
+  const resetRenameConfig = useCallback(() => {
+    setRenameConfigState(DEFAULT_RENAME_CONFIG);
   }, []);
 
   const clearAll = useCallback(() => {
     setImages([]);
     setActiveIdState(null);
     localStorage.removeItem(STORAGE_KEY);
+    // intentionally keep rename config on clear-all; user may want to reuse it
   }, []);
 
   // ------------------------------------------------------------------
@@ -209,19 +222,23 @@ export function useImageStore(): UseImageStore {
   // ------------------------------------------------------------------
 
   const activeImage = images.find((img) => img.id === activeId) ?? null;
-  const doneCount = images.filter((img) => img.status === 'done').length;
+  const doneCount   = images.filter((img) => img.status === 'done').length;
   const pendingCount = images.filter((img) => img.status !== 'done').length;
 
   return {
     images,
     activeId,
     activeImage,
+    renameConfig,
     addImages,
     setActiveId,
     saveImage,
     goToNext,
     removeImage,
     resetImage,
+    reorderImages,
+    setRenameConfig,
+    resetRenameConfig,
     clearAll,
     doneCount,
     pendingCount,

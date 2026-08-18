@@ -13,7 +13,7 @@ export interface CropData {
 export interface ImageItem {
   /** Unique identifier */
   id: string;
-  /** Original file name */
+  /** Original file name (never mutated) */
   name: string;
   /** Base64 data URL of the original image */
   originalDataUrl: string;
@@ -29,7 +29,27 @@ export interface ImageItem {
   doneAt: number | null;
 }
 
+/** Configuration for the bulk rename feature */
+export interface RenameConfig {
+  /** Custom prefix string, e.g. "vacation" */
+  prefix: string;
+  /** If true, keep the original stem in the generated name */
+  keepOriginalName: boolean;
+  /** The number to start counting from */
+  startNumber: number;
+  /** Zero-padding width, e.g. 3 → "001" */
+  padding: number;
+}
+
+export const DEFAULT_RENAME_CONFIG: RenameConfig = {
+  prefix: '',
+  keepOriginalName: false,
+  startNumber: 1,
+  padding: 3,
+};
+
 export interface ImageStore {
   images: ImageItem[];
   activeId: string | null;
+  renameConfig: RenameConfig;
 }

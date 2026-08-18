@@ -720,6 +720,796 @@ img {
 }
 
 /* =============================================
+   Queue – generated name preview (list mode)
+   ============================================= */
+
+.drag-handle {
+  font-size: 14px;
+  color: var(--text-muted);
+  cursor: grab;
+  padding: 0 2px;
+  flex-shrink: 0;
+  user-select: none;
+  line-height: 1;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.queue-final-name {
+  font-size: 10px;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-style: italic;
+}
+
+.queue-item.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* =============================================
+   Status icon colours (used in ImageQueue)
+   ============================================= */
+
+.si-done    { color: var(--green); }
+.si-editing { color: var(--blue); }
+.si-pending { color: var(--text-muted); }
+
+/* =============================================
+   View toggle (list / grid)
+   ============================================= */
+
+.view-toggle {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+
+.view-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  color: var(--text-muted);
+}
+
+.view-toggle-btn:hover {
+  color: var(--text-primary);
+}
+
+.view-toggle-btn.active {
+  background: var(--bg-active);
+  color: var(--accent);
+}
+
+/* =============================================
+   Gallery grid (queue sidebar – grid mode)
+   ============================================= */
+
+.gallery-grid {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 6px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  align-content: start;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-light) transparent;
+}
+
+.gallery-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--bg-elevated);
+  transition: border-color var(--trans), background var(--trans);
+  position: relative;
+}
+
+.gallery-card:hover {
+  border-color: var(--border-light);
+  background: var(--bg-hover);
+}
+
+.gallery-card.active {
+  border-color: var(--accent);
+  background: var(--bg-active);
+}
+
+.gallery-card.done {
+  opacity: 0.75;
+}
+
+.gallery-card.done.active {
+  opacity: 1;
+}
+
+.gallery-card.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.gallery-thumb-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--bg-base);
+}
+
+.gallery-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.gallery-index {
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  background: rgba(0,0,0,0.6);
+  color: rgba(255,255,255,0.9);
+  border-radius: 3px;
+  padding: 1px 4px;
+  line-height: 1.4;
+}
+
+.gallery-status-dot {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0,0,0,0.4);
+}
+
+.gallery-status-dot.done    { background: var(--green); }
+.gallery-status-dot.editing { background: var(--blue); }
+.gallery-status-dot.pending { background: var(--text-muted); }
+
+.gallery-card-info {
+  padding: 4px 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.gallery-orig-name {
+  font-size: 9px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gallery-final-name {
+  font-size: 9px;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-style: italic;
+}
+
+.gallery-card-actions {
+  display: none;
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  gap: 2px;
+}
+
+.gallery-card:hover .gallery-card-actions {
+  display: flex;
+}
+
+/* =============================================
+   Toolbar active state (for toggle buttons)
+   ============================================= */
+
+.toolbar-btn.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+/* =============================================
+   App body modifier — full width (rename page)
+   ============================================= */
+
+.app-body--full {
+  /* Remove the fixed sidebar so RenamePage can own all horizontal space */
+  overflow: hidden;
+}
+
+/* =============================================
+   Toolbar additions
+   ============================================= */
+
+.toolbar-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  margin-left: 8px;
+  transition: background var(--trans), color var(--trans);
+}
+
+.toolbar-back-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.toolbar-view-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border: 1px solid rgba(124, 106, 247, 0.25);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* =============================================
+   Rename Page — root layout
+   ============================================= */
+
+.rp-root {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* =============================================
+   Gallery section (left, large)
+   ============================================= */
+
+.rp-gallery-section {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+}
+
+.rp-gallery-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+
+.rp-gallery-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.rp-gallery-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.rp-gallery-count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+
+.rp-gallery-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.rp-gallery-empty-hint {
+  font-size: 12px;
+}
+
+/* ─── Gallery grid ─────────────────────────── */
+
+.rp-gallery-grid {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px;
+  display: grid;
+  /* Responsive columns: min 180px, fills available space */
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  align-content: start;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-light) transparent;
+}
+
+/* ─── Gallery card ─────────────────────────── */
+
+.rp-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-elevated);
+  cursor: grab;
+  transition: border-color var(--trans), box-shadow var(--trans), transform var(--trans);
+  user-select: none;
+}
+
+.rp-card:hover {
+  border-color: var(--border-light);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.rp-card--drag-over {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px var(--accent-dim), 0 4px 20px rgba(124, 106, 247, 0.25) !important;
+  transform: scale(1.02);
+}
+
+.rp-card--dragging {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+
+/* Position badge */
+.rp-card-index {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2;
+  background: rgba(0, 0, 0, 0.65);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 2px 6px;
+  line-height: 1.4;
+  backdrop-filter: blur(2px);
+}
+
+/* Grip handle */
+.rp-card-grip {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  color: rgba(255, 255, 255, 0.5);
+  opacity: 0;
+  transition: opacity var(--trans);
+}
+
+.rp-card:hover .rp-card-grip {
+  opacity: 1;
+}
+
+/* Thumbnail */
+.rp-card-thumb-wrap {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--bg-base);
+  flex-shrink: 0;
+}
+
+.rp-card-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 200ms ease;
+}
+
+.rp-card:hover .rp-card-thumb {
+  transform: scale(1.03);
+}
+
+/* Name block */
+.rp-card-names {
+  padding: 8px 10px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.rp-card-orig {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rp-card-final {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-style: italic;
+}
+
+.rp-card-final.changed {
+  color: var(--accent);
+  font-weight: 500;
+  font-style: normal;
+}
+
+/* Footer */
+.rp-card-footer {
+  padding: 5px 10px 8px;
+  display: flex;
+  align-items: center;
+}
+
+/* Status badge */
+.rp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+
+.rp-badge.done    { background: var(--green-dim);  color: var(--green); }
+.rp-badge.editing { background: var(--blue-dim);   color: var(--blue);  }
+.rp-badge.pending { background: var(--bg-hover);   color: var(--text-muted); }
+
+/* =============================================
+   Rename Controls panel (right)
+   ============================================= */
+
+.rp-controls {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.rp-controls-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.rp-controls-icon {
+  color: var(--accent);
+}
+
+.rp-controls-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.rp-controls-body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.rp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+
+.rp-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rp-input {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 7px 10px;
+  outline: none;
+  width: 100%;
+  transition: border-color var(--trans);
+}
+
+.rp-input:focus {
+  border-color: var(--accent);
+}
+
+.rp-input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.rp-input[type="number"]::-webkit-outer-spin-button,
+.rp-input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+
+.rp-field-pair {
+  display: flex;
+  gap: 10px;
+}
+
+.rp-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.rp-checkbox {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.rp-checkbox-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.rp-example-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+
+.rp-example-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+}
+
+.rp-example-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  word-break: break-all;
+}
+
+.rp-example-value.muted {
+  color: var(--text-muted);
+}
+
+.rp-reset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  align-self: flex-start;
+}
+
+.rp-reset-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* ─── Live preview ─────────────────────────── */
+
+.rp-preview-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 12px 16px 14px;
+  gap: 8px;
+}
+
+.rp-preview-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.rp-preview-table {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  font-size: 11px;
+}
+
+.rp-preview-head {
+  display: grid;
+  grid-template-columns: 24px 1fr 16px 1fr;
+  gap: 4px;
+  padding: 5px 8px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.rp-preview-body {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-light) transparent;
+}
+
+.rp-preview-row {
+  display: grid;
+  grid-template-columns: 24px 1fr 16px 1fr;
+  gap: 4px;
+  align-items: center;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.rp-preview-row:last-child {
+  border-bottom: none;
+}
+
+.rp-pv-num {
+  color: var(--text-muted);
+  font-size: 10px;
+  text-align: right;
+}
+
+.rp-pv-orig {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rp-pv-arrow {
+  color: var(--text-muted);
+  text-align: center;
+  font-size: 10px;
+}
+
+.rp-pv-final {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rp-pv-final.changed {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.rp-preview-more {
+  padding: 6px 8px;
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* =============================================
+   Rename Page responsive
+   ============================================= */
+
+@media (max-width: 1100px) {
+  .rp-gallery-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+    padding: 14px;
+  }
+  .rp-controls {
+    width: 280px;
+  }
+}
+
+@media (max-width: 860px) {
+  /* Stack vertically on narrow screens */
+  .rp-root {
+    flex-direction: column;
+  }
+  .rp-gallery-section {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    flex: 0 0 55%;
+  }
+  .rp-controls {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .rp-controls-body {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+    border-bottom: none;
+    border-right: 1px solid var(--border);
+    flex: 1;
+  }
+  .rp-preview-wrap {
+    flex: 1;
+    min-width: 200px;
+  }
+}
+
+/* =============================================
    Scrollbar styling
    ============================================= */
 

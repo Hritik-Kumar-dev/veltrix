@@ -1,40 +1,60 @@
+import { useState, useCallback } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { useImageStore } from './hooks/useImageStore';
 import { Toolbar } from './components/Toolbar';
 import { ImageQueue } from './components/ImageQueue';
 import { ImageEditor } from './components/ImageEditor';
 import { EmptyState } from './components/EmptyState';
-import type { CropData } from './types';
+import { RenamePage } from './components/RenamePage';
+import { generateFinalName } from './renameUtils';
+import type { CropData, ImageItem } from './types';
 import './App.css';
+
+type AppView = 'editor' | 'rename';
 
 function App() {
   const {
     images,
     activeId,
     activeImage,
+    renameConfig,
     addImages,
     setActiveId,
     saveImage,
     goToNext,
     removeImage,
     resetImage,
+    reorderImages,
+    setRenameConfig,
+    resetRenameConfig,
     clearAll,
     doneCount,
     pendingCount,
   } = useImageStore();
 
-  const hasNext =
-    images.some((img) => img.status !== 'done' && img.id !== activeId) ||
-    images.some((img) => img.status !== 'done' && img.id !== activeId);
+  const [view, setView] = useState<AppView>('editor');
 
-  const handleSave = (id: string, cropData: CropData, dataUrl: string) => {
-    saveImage(id, cropData, dataUrl);
-  };
+  const hasNext = images.some((img) => img.status !== 'done' && img.id !== activeId);
 
-  const handleSaveAndNext = (id: string, cropData: CropData, dataUrl: string) => {
-    saveImage(id, cropData, dataUrl);
-    goToNext();
-  };
+  const handleSave = useCallback(
+    (id: string, cropData: CropData, dataUrl: string) => {
+      saveImage(id, cropData, dataUrl);
+    },
+    [saveImage]
+  );
+
+  const handleSaveAndNext = useCallback(
+    (id: string, cropData: CropData, dataUrl: string) => {
+      saveImage(id, cropData, dataUrl);
+      goToNext();
+    },
+    [saveImage, goToNext]
+  );
+
+  const getFinalName = useCallback(
+    (img: ImageItem, index: number) => generateFinalName(img.name, index, renameConfig),
+    [renameConfig]
+  );
 
   return (
     <div className="app-root">
@@ -51,43 +71,62 @@ function App() {
         }}
       />
 
-      {/* Top toolbar */}
+      {/* Top toolbar — always visible */}
       <Toolbar
         images={images}
         onImport={addImages}
         onClearAll={clearAll}
+        onNavigateRename={() => setView('rename')}
+        onNavigateEditor={() => setView('editor')}
+        view={view}
         doneCount={doneCount}
+        getFinalName={getFinalName}
       />
 
-      {/* Main body */}
-      <main className="app-body">
-        {/* Left queue */}
-        <ImageQueue
-          images={images}
-          activeId={activeId}
-          onSelect={setActiveId}
-          onRemove={removeImage}
-          onReset={resetImage}
-          doneCount={doneCount}
-          pendingCount={pendingCount}
-        />
+      {/* ── Rename page ────────────────────────────────── */}
+      {view === 'rename' && (
+        <main className="app-body app-body--full">
+          <RenamePage
+            images={images}
+            config={renameConfig}
+            onChange={setRenameConfig}
+            onReset={resetRenameConfig}
+            onReorder={reorderImages}
+          />
+        </main>
+      )}
 
-        {/* Center editor / empty state */}
-        <section className="editor-section">
-          {activeImage ? (
-            <ImageEditor
-              key={activeImage.id}
-              image={activeImage}
-              hasNext={hasNext}
-              onSave={handleSave}
-              onNext={goToNext}
-              onSaveAndNext={handleSaveAndNext}
-            />
-          ) : (
-            <EmptyState hasImages={images.length > 0} onImport={addImages} />
-          )}
-        </section>
-      </main>
+      {/* ── Editor page ────────────────────────────────── */}
+      {view === 'editor' && (
+        <main className="app-body">
+          <ImageQueue
+            images={images}
+            activeId={activeId}
+            renameConfig={renameConfig}
+            onSelect={setActiveId}
+            onRemove={removeImage}
+            onReset={resetImage}
+            onReorder={reorderImages}
+            doneCount={doneCount}
+            pendingCount={pendingCount}
+          />
+
+          <section className="editor-section">
+            {activeImage ? (
+              <ImageEditor
+                key={activeImage.id}
+                image={activeImage}
+                hasNext={hasNext}
+                onSave={handleSave}
+                onNext={goToNext}
+                onSaveAndNext={handleSaveAndNext}
+              />
+            ) : (
+              <EmptyState hasImages={images.length > 0} onImport={addImages} />
+            )}
+          </section>
+        </main>
+      )}
     </div>
   );
 }

@@ -1,18 +1,41 @@
 import { useRef } from 'react';
-import { FolderOpen, Download, DownloadCloud, Trash2, Image } from 'lucide-react';
+import {
+  FolderOpen,
+  Download,
+  DownloadCloud,
+  Trash2,
+  Image,
+  Tag,
+  ArrowLeft,
+} from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import toast from 'react-hot-toast';
 import type { ImageItem } from '../types';
 
+type AppView = 'editor' | 'rename';
+
 interface Props {
   images: ImageItem[];
   onImport: (files: File[]) => Promise<void>;
   onClearAll: () => void;
+  onNavigateRename: () => void;
+  onNavigateEditor: () => void;
+  view: AppView;
   doneCount: number;
+  getFinalName: (img: ImageItem, index: number) => string;
 }
 
-export function Toolbar({ images, onImport, onClearAll, doneCount }: Props) {
+export function Toolbar({
+  images,
+  onImport,
+  onClearAll,
+  onNavigateRename,
+  onNavigateEditor,
+  view,
+  doneCount,
+  getFinalName,
+}: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -20,60 +43,44 @@ export function Toolbar({ images, onImport, onClearAll, doneCount }: Props) {
     if (!files.length) return;
     await onImport(files);
     toast.success(`Imported ${files.length} image${files.length > 1 ? 's' : ''}`);
-    // Reset so same files can be re-imported if needed
     e.target.value = '';
   };
 
-  const handleImportClick = () => fileInputRef.current?.click();
-
-  const downloadSingle = (img: ImageItem) => {
-    const src = img.processedDataUrl ?? img.originalDataUrl;
-    const a = document.createElement('a');
-    a.href = src;
-    // Preserve original extension, swap to jpg for processed
-    const ext = img.processedDataUrl ? 'jpg' : img.name.split('.').pop() ?? 'jpg';
-    a.download = img.name.replace(/\.[^.]+$/, '') + '_processed.' + ext;
-    a.click();
-  };
-
-  const handleExportSelected = () => {
-    const done = images.filter((img) => img.status === 'done');
-    if (!done.length) {
-      toast.error('No processed images to export.');
-      return;
-    }
+  const handleExportZip = () => {
+    if (!images.length) { toast.error('No images to export.'); return; }
     toast.promise(
       (async () => {
         const zip = new JSZip();
-        done.forEach((img) => {
-          const base64 = (img.processedDataUrl ?? img.originalDataUrl).split(',')[1];
-          const name = img.name.replace(/\.[^.]+$/, '') + '_processed.jpg';
-          zip.file(name, base64, { base64: true });
+        images.forEach((img, idx) => {
+          const src = img.processedDataUrl ?? img.originalDataUrl;
+          const base64 = src.split(',')[1];
+          zip.file(getFinalName(img, idx), base64, { base64: true });
         });
         const blob = await zip.generateAsync({ type: 'blob' });
-        saveAs(blob, 'processed_images.zip');
+        saveAs(blob, 'batch_export.zip');
       })(),
       {
         loading: 'Building ZIP…',
-        success: `Exported ${done.length} image${done.length > 1 ? 's' : ''}`,
+        success: `Exported ${images.length} image${images.length > 1 ? 's' : ''}`,
         error: 'Export failed',
       }
     );
   };
 
-  const handleExportOne = () => {
-    const done = images.filter((img) => img.status === 'done');
-    if (!done.length) {
-      toast.error('No processed images to export.');
-      return;
-    }
-    done.forEach(downloadSingle);
-    toast.success(`Downloading ${done.length} file${done.length > 1 ? 's' : ''}…`);
+  const handleDownloadAll = () => {
+    if (!images.length) { toast.error('No images to download.'); return; }
+    images.forEach((img, idx) => {
+      const a = document.createElement('a');
+      a.href = img.processedDataUrl ?? img.originalDataUrl;
+      a.download = getFinalName(img, idx);
+      a.click();
+    });
+    toast.success(`Downloading ${images.length} file${images.length > 1 ? 's' : ''}…`);
   };
 
   const handleClearAll = () => {
-    if (images.length === 0) return;
-    if (!confirm('Remove all images and clear local storage? This cannot be undone.')) return;
+    if (!images.length) return;
+    if (!confirm('Remove all images? This cannot be undone.')) return;
     onClearAll();
     toast.success('All images cleared');
   };
@@ -86,20 +93,58 @@ export function Toolbar({ images, onImport, onClearAll, doneCount }: Props) {
         <span className="brand-name">BatchCrop</span>
       </div>
 
-      {/* Actions */}
-      <div className="toolbar-actions">
-        <button className="toolbar-btn primary" onClick={handleImportClick}>
-          <FolderOpen size={16} />
-          Import Images
+      {/* Back button — only visible on rename page */}
+      {view === 'rename' && (
+        <button
+          className="toolbar-btn toolbar-back-btn"
+          onClick={onNavigateEditor}
+          title="Return to image editor"
+        >
+          <ArrowLeft size={16} />
+          Back to Editor
         </button>
+      )}
+
+      {/* Right-side actions */}
+      <div className="toolbar-actions">
+        {/* Import — hidden on rename page to keep toolbar clean */}
+        {view === 'editor' && (
+          <button
+            className="toolbar-btn primary"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <FolderOpen size={16} />
+            Import Images
+          </button>
+        )}
+
+        {view === 'editor' && <div className="toolbar-divider" />}
+
+        {/* Rename / Back toggle */}
+        {view === 'editor' ? (
+          <button
+            className="toolbar-btn"
+            onClick={onNavigateRename}
+            title="Open bulk rename workspace"
+          >
+            <Tag size={16} />
+            Rename
+          </button>
+        ) : (
+          /* On rename page, show a subtle "editing view" indicator */
+          <span className="toolbar-view-indicator">
+            <Tag size={14} />
+            Bulk Rename
+          </span>
+        )}
 
         <div className="toolbar-divider" />
 
         <button
           className="toolbar-btn"
-          onClick={handleExportSelected}
-          disabled={doneCount === 0}
-          title="Export all processed images as ZIP"
+          onClick={handleExportZip}
+          disabled={images.length === 0}
+          title="Export all images as ZIP with generated filenames"
         >
           <DownloadCloud size={16} />
           Export ZIP
@@ -108,9 +153,9 @@ export function Toolbar({ images, onImport, onClearAll, doneCount }: Props) {
 
         <button
           className="toolbar-btn"
-          onClick={handleExportOne}
-          disabled={doneCount === 0}
-          title="Download each processed image separately"
+          onClick={handleDownloadAll}
+          disabled={images.length === 0}
+          title="Download each image individually"
         >
           <Download size={16} />
           Download All
@@ -129,7 +174,6 @@ export function Toolbar({ images, onImport, onClearAll, doneCount }: Props) {
         </button>
       </div>
 
-      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
