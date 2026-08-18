@@ -682,6 +682,44 @@ img {
 }
 
 /* =============================================
+   Keyboard shortcut hints
+   ============================================= */
+
+.kbd-hints {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 2px;
+  border-top: 1px solid var(--border);
+  margin-top: 2px;
+}
+
+.kbd-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 5px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-light);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+/* =============================================
    Scrollbar styling
    ============================================= */
 
@@ -742,5 +780,9 @@ img {
 
   .rotate-number {
     width: 44px;
+  }
+
+  .kbd-hints {
+    display: none;
   }
 }

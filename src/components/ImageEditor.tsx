@@ -105,6 +105,52 @@ export function ImageEditor({ image, hasNext, onSave, onNext, onSaveAndNext }: P
     setIsSaving(false);
   }, [image.id, getCroppedDataUrl, buildCropData, onSaveAndNext]);
 
+  // Keyboard shortcuts — active whenever the editor is mounted
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Don't fire when the user is typing in an input/textarea/contenteditable
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const step = e.ctrlKey ? -90 : -1;
+        setRotation((prev) => {
+          const next = prev + step;
+          applyRotation(next);
+          return next;
+        });
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        const step = e.ctrlKey ? 90 : 1;
+        setRotation((prev) => {
+          const next = prev + step;
+          applyRotation(next);
+          return next;
+        });
+      } else if (e.key === ' ') {
+        // Prevent page scroll
+        e.preventDefault();
+        // Trigger Save & Next (or just Save if no next image)
+        if (hasNext) {
+          handleSaveAndNext();
+        } else {
+          handleSave();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [applyRotation, hasNext, handleSave, handleSaveAndNext]);
+
   // Restore crop box from saved state after cropper is ready
   const onCropperReady = useCallback(() => {
     const cropper = cropperRef.current?.cropper;
@@ -208,6 +254,7 @@ export function ImageEditor({ image, hasNext, onSave, onNext, onSaveAndNext }: P
             className="action-btn primary"
             onClick={handleSave}
             disabled={isSaving}
+            title="Save (or press Space when no next image)"
           >
             <Save size={16} />
             Save
@@ -217,10 +264,12 @@ export function ImageEditor({ image, hasNext, onSave, onNext, onSaveAndNext }: P
               className="action-btn success"
               onClick={handleSaveAndNext}
               disabled={isSaving}
+              title="Save &amp; go to next image (Space)"
             >
               <Save size={16} />
               Save &amp; Next
               <SkipForward size={16} />
+              <kbd className="kbd">Space</kbd>
             </button>
           )}
           {hasNext && (
@@ -233,6 +282,13 @@ export function ImageEditor({ image, hasNext, onSave, onNext, onSaveAndNext }: P
               Skip
             </button>
           )}
+        </div>
+
+        {/* Keyboard shortcut hints */}
+        <div className="kbd-hints">
+          <span className="kbd-hint"><kbd className="kbd">←</kbd><kbd className="kbd">→</kbd> Rotate 1°</span>
+          <span className="kbd-hint"><kbd className="kbd">Ctrl</kbd><kbd className="kbd">←</kbd><kbd className="kbd">→</kbd> Rotate 90°</span>
+          <span className="kbd-hint"><kbd className="kbd">Space</kbd> Save &amp; Next</span>
         </div>
       </div>
     </div>
