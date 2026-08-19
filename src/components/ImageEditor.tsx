@@ -75,7 +75,11 @@ export function ImageEditor({
 
   // ── Rotation helpers ──────────────────────────────────────────────
   const applyRotation = useCallback((deg: number) => {
-    cropperRef.current?.cropper.rotateTo(deg);
+    // In standard mode, drive CropperJS; in perspective mode the rotation
+    // is stored in state and applied at export time (see getCroppedDataUrl).
+    if (cropperRef.current?.cropper) {
+      cropperRef.current.cropper.rotateTo(deg);
+    }
   }, []);
 
   const handleRotationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -97,6 +101,27 @@ export function ImageEditor({
     cropper.setAspectRatio(ratio === null ? NaN : ratio);
   }, []);
 
+  // ── Rotate a canvas by an arbitrary angle ────────────────────────
+  // Returns a new canvas with the image rotated around its centre.
+  // Used by the perspective pipeline so that rotation state is honoured
+  // without routing it through CropperJS.
+  const rotateCanvas = useCallback((src: HTMLCanvasElement, degrees: number): HTMLCanvasElement => {
+    const rad = (degrees * Math.PI) / 180;
+    const sin = Math.abs(Math.sin(rad));
+    const cos = Math.abs(Math.cos(rad));
+    const outW = Math.round(src.width * cos + src.height * sin);
+    const outH = Math.round(src.width * sin + src.height * cos);
+
+    const out = document.createElement('canvas');
+    out.width  = outW;
+    out.height = outH;
+    const ctx = out.getContext('2d')!;
+    ctx.translate(outW / 2, outH / 2);
+    ctx.rotate(rad);
+    ctx.drawImage(src, -src.width / 2, -src.height / 2);
+    return out;
+  }, []);
+
   // ── Core pipeline ─────────────────────────────────────────────────
   const getCroppedDataUrl = useCallback((): string | null => {
     try {
@@ -105,7 +130,9 @@ export function ImageEditor({
       if (cropMode === 'perspective') {
         const pc = perspRef.current?.getCroppedCanvas();
         if (!pc) return null;
-        sourceCanvas = pc;
+        // Apply the current rotation to the perspective-corrected canvas
+        // so the same rotation pipeline works regardless of crop mode.
+        sourceCanvas = rotation !== 0 ? rotateCanvas(pc, rotation) : pc;
       } else {
         const cropper = cropperRef.current?.cropper;
         if (!cropper) return null;
@@ -121,7 +148,7 @@ export function ImageEditor({
         ? resizeAndCompress(sourceCanvas, resizeConfig)
         : sourceCanvas.toDataURL('image/jpeg', 0.92);
     } catch { return null; }
-  }, [cropMode, resizeConfig]);
+  }, [cropMode, resizeConfig, rotation, rotateCanvas]);
 
   const buildCropData = useCallback((): CropData => {
     const cropper = cropperRef.current?.cropper;

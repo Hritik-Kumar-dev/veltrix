@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Lock, Unlock } from 'lucide-react';
 import type { ResizeCompressConfig } from '../types';
 
@@ -22,6 +22,22 @@ const DIM_PRESETS: { id: DimPreset; label: string; max: number | null }[] = [
   { id: 'custom',   label: 'Custom',  max: null },
 ];
 
+/** Map a maxSizeBytes value back to its named preset (or 'custom' / 'none'). */
+function sizePresetFromBytes(bytes: number | null): SizePreset {
+  if (bytes === null) return 'none';
+  const match = SIZE_PRESETS.find((p) => p.id !== 'none' && p.id !== 'custom' && p.bytes === bytes);
+  return match ? match.id : 'custom';
+}
+
+/** Map maxWidth back to its named dimension preset (or 'custom' / 'original'). */
+function dimPresetFromWidth(maxWidth: number | null, maxHeight: number | null): DimPreset {
+  if (maxWidth === null && maxHeight === null) return 'original';
+  const match = DIM_PRESETS.find(
+    (p) => p.id !== 'original' && p.id !== 'custom' && p.max === maxWidth && maxHeight === null
+  );
+  return match ? match.id : 'custom';
+}
+
 interface Props {
   config: ResizeCompressConfig;
   onChange: (cfg: ResizeCompressConfig) => void;
@@ -31,11 +47,41 @@ interface Props {
 }
 
 export function ResizeCompressPanel({ config, onChange, estimatedSize, locked, onLockChange }: Props) {
-  const [sizePreset, setSizePreset] = useState<SizePreset>('none');
-  const [dimPreset,  setDimPreset]  = useState<DimPreset>('original');
-  const [customKb,   setCustomKb]   = useState('');
+  // Derive the highlighted preset button from the incoming config so that
+  // when the parent switches images (or applies a locked config) the UI
+  // always reflects the active values instead of holding onto stale state.
+  const [sizePreset, setSizePreset] = useState<SizePreset>(() => sizePresetFromBytes(config.maxSizeBytes));
+  const [dimPreset,  setDimPreset]  = useState<DimPreset>(() => dimPresetFromWidth(config.maxWidth, config.maxHeight));
+  const [customKb,   setCustomKb]   = useState(() =>
+    sizePresetFromBytes(config.maxSizeBytes) === 'custom' && config.maxSizeBytes !== null
+      ? String(Math.round(config.maxSizeBytes / 1024))
+      : ''
+  );
   const [customW,    setCustomW]    = useState(config.maxWidth  ? String(config.maxWidth)  : '');
   const [customH,    setCustomH]    = useState(config.maxHeight ? String(config.maxHeight) : '');
+
+  // Sync local preset display whenever the config prop changes from outside
+  // (e.g. image switch with a locked resize config).
+  useEffect(() => {
+    const sp = sizePresetFromBytes(config.maxSizeBytes);
+    setSizePreset(sp);
+    if (sp === 'custom' && config.maxSizeBytes !== null) {
+      setCustomKb(String(Math.round(config.maxSizeBytes / 1024)));
+    } else if (sp !== 'custom') {
+      setCustomKb('');
+    }
+
+    const dp = dimPresetFromWidth(config.maxWidth, config.maxHeight);
+    setDimPreset(dp);
+    // Always sync the custom input fields to match config values.
+    // This covers both custom (where inputs are shown) and named presets
+    // (where they are hidden but kept up-to-date for when custom is selected).
+    setCustomW(config.maxWidth  ? String(config.maxWidth)  : '');
+    setCustomH(config.maxHeight ? String(config.maxHeight) : '');
+  // We intentionally depend on the individual config fields so that the
+  // effect only fires when the actual values change, not on every render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.maxSizeBytes, config.maxWidth, config.maxHeight]);
 
   const emit = (partial: Partial<ResizeCompressConfig>) => {
     const next = { ...config, ...partial };
