@@ -72,8 +72,28 @@ export const DEFAULT_RENAME_CONFIG: RenameConfig = {
   padding: 3,
 };
 
+/**
+ * Editor-wide settings that persist across images when locked.
+ * Stored separately from per-image state so they survive image switches.
+ */
+export interface EditorGlobals {
+  /** null = no lock (free). number = locked ratio. 'free' = locked to free. */
+  lockedAspectRatio: number | 'free' | null;
+  /** null = not locked. object = locked resize/compress config. */
+  lockedResizeConfig: ResizeCompressConfig | null;
+  /** The filename for the exported ZIP (without extension). */
+  zipFilename: string;
+}
+
+export const DEFAULT_EDITOR_GLOBALS: EditorGlobals = {
+  lockedAspectRatio: null,
+  lockedResizeConfig: null,
+  zipFilename: 'batch_export',
+};
+
 export interface ImageStore {
   images: ImageItem[];
   activeId: string | null;
   renameConfig: RenameConfig;
+  editorGlobals: EditorGlobals;
 }

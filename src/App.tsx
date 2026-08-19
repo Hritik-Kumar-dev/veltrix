@@ -1,11 +1,11 @@
 import { useState, useCallback } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { useImageStore } from './hooks/useImageStore';
-import { Toolbar } from './components/Toolbar';
-import { ImageQueue } from './components/ImageQueue';
-import { ImageEditor } from './components/ImageEditor';
-import { EmptyState } from './components/EmptyState';
-import { RenamePage } from './components/RenamePage';
+import { Toolbar }      from './components/Toolbar';
+import { ImageQueue }   from './components/ImageQueue';
+import { ImageEditor }  from './components/ImageEditor';
+import { EmptyState }   from './components/EmptyState';
+import { RenamePage }   from './components/RenamePage';
 import { generateFinalName } from './renameUtils';
 import type { CropData, ImageItem } from './types';
 import './App.css';
@@ -14,23 +14,13 @@ type AppView = 'editor' | 'rename';
 
 function App() {
   const {
-    images,
-    activeId,
-    activeImage,
-    renameConfig,
-    addImages,
-    setActiveId,
-    saveImage,
-    goToNext,
-    removeImage,
-    resetImage,
-    reorderImages,
-    setRenameConfig,
-    resetRenameConfig,
-    setResizeConfig,
-    clearAll,
-    doneCount,
-    pendingCount,
+    images, activeId, activeImage,
+    renameConfig, editorGlobals,
+    addImages, setActiveId, saveImage, goToNext,
+    removeImage, resetImage, reorderImages,
+    setRenameConfig, resetRenameConfig,
+    setResizeConfig, setEditorGlobals,
+    clearAll, doneCount, pendingCount,
   } = useImageStore();
 
   const [view, setView] = useState<AppView>('editor');
@@ -38,17 +28,12 @@ function App() {
   const hasNext = images.some((img) => img.status !== 'done' && img.id !== activeId);
 
   const handleSave = useCallback(
-    (id: string, cropData: CropData, dataUrl: string) => {
-      saveImage(id, cropData, dataUrl);
-    },
+    (id: string, cropData: CropData, dataUrl: string) => saveImage(id, cropData, dataUrl),
     [saveImage]
   );
 
   const handleSaveAndNext = useCallback(
-    (id: string, cropData: CropData, dataUrl: string) => {
-      saveImage(id, cropData, dataUrl);
-      goToNext();
-    },
+    (id: string, cropData: CropData, dataUrl: string) => { saveImage(id, cropData, dataUrl); goToNext(); },
     [saveImage, goToNext]
   );
 
@@ -63,16 +48,12 @@ function App() {
         position="top-right"
         toastOptions={{
           style: {
-            background: '#1e1e2e',
-            color: '#cdd6f4',
-            border: '1px solid #313244',
-            borderRadius: '8px',
-            fontSize: '13px',
+            background: '#1e1e2e', color: '#cdd6f4',
+            border: '1px solid #313244', borderRadius: '8px', fontSize: '13px',
           },
         }}
       />
 
-      {/* Top toolbar — always visible */}
       <Toolbar
         images={images}
         onImport={addImages}
@@ -82,9 +63,10 @@ function App() {
         view={view}
         doneCount={doneCount}
         getFinalName={getFinalName}
+        zipFilename={editorGlobals.zipFilename}
+        onZipFilenameChange={(name) => setEditorGlobals({ zipFilename: name })}
       />
 
-      {/* ── Rename page ────────────────────────────────── */}
       {view === 'rename' && (
         <main className="app-body app-body--full">
           <RenamePage
@@ -97,7 +79,6 @@ function App() {
         </main>
       )}
 
-      {/* ── Editor page ────────────────────────────────── */}
       {view === 'editor' && (
         <main className="app-body">
           <ImageQueue
@@ -118,10 +99,12 @@ function App() {
                 key={activeImage.id}
                 image={activeImage}
                 hasNext={hasNext}
+                editorGlobals={editorGlobals}
                 onSave={handleSave}
                 onNext={goToNext}
                 onSaveAndNext={handleSaveAndNext}
                 onResizeConfigChange={setResizeConfig}
+                onGlobalsChange={setEditorGlobals}
               />
             ) : (
               <EmptyState hasImages={images.length > 0} onImport={addImages} />

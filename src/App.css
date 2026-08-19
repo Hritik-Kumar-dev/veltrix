@@ -682,6 +682,165 @@ img {
 }
 
 /* =============================================
+   Crop mode bar
+   ============================================= */
+
+.crop-mode-bar {
+  display: flex;
+  gap: 4px;
+  padding: 6px 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.crop-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  transition: background var(--trans), border-color var(--trans), color var(--trans);
+}
+
+.crop-mode-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.crop-mode-btn.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Perspective canvas */
+.persp-canvas {
+  touch-action: none;
+}
+
+/* =============================================
+   Lock buttons (Aspect Ratio + Resize)
+   ============================================= */
+
+.ar-lock-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  transition: background var(--trans), color var(--trans), border-color var(--trans);
+}
+
+.ar-lock-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.ar-lock-btn.locked {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.rc-lock-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.rc-lock-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.rc-lock-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.rc-lock-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.rc-lock-btn.locked {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* =============================================
+   ZIP filename input in toolbar
+   ============================================= */
+
+.zip-name-field {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  transition: border-color var(--trans);
+}
+
+.zip-name-field:focus-within {
+  border-color: var(--accent);
+}
+
+.zip-name-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 4px 8px;
+  width: 130px;
+}
+
+.zip-name-ext {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding-right: 8px;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* =============================================
+   Dragging state for queue/gallery cards
+   ============================================= */
+
+.queue-item.dragging,
+.gallery-card.dragging {
+  opacity: 0.35;
+  transform: scale(0.97);
+  pointer-events: none;
+}
+
+/* =============================================
    Aspect Ratio Selector
    ============================================= */
 

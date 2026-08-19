@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { CheckCircle2, Clock, Pencil, Trash2, RotateCcw, LayoutGrid, List } from 'lucide-react';
 import type { ImageItem, RenameConfig } from '../types';
 import { generateFinalName } from '../renameUtils';
@@ -24,85 +24,128 @@ function StatusIcon({ status }: { status: ImageItem['status'] }) {
 }
 
 export function ImageQueue({
-  images,
-  activeId,
-  renameConfig,
-  onSelect,
-  onRemove,
-  onReset,
-  onReorder,
-  doneCount,
-  pendingCount,
+  images, activeId, renameConfig,
+  onSelect, onRemove, onReset, onReorder,
+  doneCount, pendingCount,
 }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
 
-  // ── Drag-and-drop state ───────────────────────────────────────────
+  // ── FLIP drag state ───────────────────────────────────────────────
   const dragIndexRef  = useRef<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
+  // Visual-order while dragging (reordered IDs, not committed yet)
+  const [visualOrder, setVisualOrder] = useState<string[]>([]);
+
+  // Initialise / sync visual order with real order
+  useEffect(() => {
+    setVisualOrder(images.map((img) => img.id));
+  }, [images]);
+
+  const getVisualImages = useCallback((): ImageItem[] => {
+    if (visualOrder.length !== images.length) return images;
+    const map = new Map(images.map((img) => [img.id, img]));
+    return visualOrder.map((id) => map.get(id)!).filter(Boolean);
+  }, [images, visualOrder]);
 
   const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
     dragIndexRef.current = index;
+    setDraggingIdx(index);
     e.dataTransfer.effectAllowed = 'move';
-    // Ghost image cleanup – optional but looks nicer
     e.dataTransfer.setData('text/plain', String(index));
   }, []);
 
-  const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
+  const handleDragOver = useCallback((e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    setDragOverIdx(index);
+    setDragOverIdx(targetIndex);
+
+    const fromIndex = dragIndexRef.current;
+    if (fromIndex === null || fromIndex === targetIndex) return;
+
+    // Compute tentative visual order while still dragging
+    setVisualOrder((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(targetIndex, 0, moved);
+      // Update the logical drag index so subsequent moves stay consistent
+      dragIndexRef.current = targetIndex;
+      return next;
+    });
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent, toIndex: number) => {
     e.preventDefault();
     const fromIndex = dragIndexRef.current;
+    // Commit via real images array positions
+    // We need to translate from visual order back to real indices
     if (fromIndex !== null && fromIndex !== toIndex) {
-      onReorder(fromIndex, toIndex);
+      const realImages = images;
+      const dragged = visualOrder[toIndex]; // id of the dragged item
+      const realFrom = realImages.findIndex((img) => img.id === (visualOrder[dragIndexRef.current ?? toIndex] ?? dragged));
+      void realFrom;
+      // Simplest: just use the visual indices as they track the intended position
+      onReorder(
+        images.findIndex((img) => img.id === visualOrder[fromIndex < toIndex ? fromIndex : toIndex]),
+        images.findIndex((img) => img.id === visualOrder[fromIndex < toIndex ? toIndex   : fromIndex])
+      );
     }
     dragIndexRef.current = null;
     setDragOverIdx(null);
-  }, [onReorder]);
+    setDraggingIdx(null);
+  }, [images, visualOrder, onReorder]);
 
   const handleDragEnd = useCallback(() => {
+    // Snap visual order back to real order on cancel
+    setVisualOrder(images.map((img) => img.id));
     dragIndexRef.current = null;
     setDragOverIdx(null);
-  }, []);
+    setDraggingIdx(null);
+  }, [images]);
 
-  // ── Shared item renderer ─────────────────────────────────────────
-  const renderItem = (img: ImageItem, index: number) => {
-    const isActive  = img.id === activeId;
-    const isDragTarget = dragOverIdx === index;
-    const finalName = generateFinalName(img.name, index, renameConfig);
-    const hasRename = finalName !== img.name;
+  // ── Render items ─────────────────────────────────────────────────
+  const visImages = getVisualImages();
+
+  const renderItem = (img: ImageItem, visualIndex: number) => {
+    const realIndex = images.findIndex((i) => i.id === img.id);
+    const isActive     = img.id === activeId;
+    const isDragOver   = dragOverIdx === visualIndex;
+    const isDragging   = draggingIdx !== null && images[draggingIdx]?.id === img.id;
+    const finalName    = generateFinalName(img.name, realIndex, renameConfig);
+    const hasRename    = finalName !== img.name;
+
+    const sharedDragProps = {
+      draggable: true,
+      onDragStart: (e: React.DragEvent) => handleDragStart(e, visualIndex),
+      onDragOver:  (e: React.DragEvent) => handleDragOver(e, visualIndex),
+      onDrop:      (e: React.DragEvent) => handleDrop(e, visualIndex),
+      onDragEnd:   handleDragEnd,
+    };
 
     if (viewMode === 'grid') {
       return (
         <div
           key={img.id}
-          className={`gallery-card ${isActive ? 'active' : ''} ${img.status === 'done' ? 'done' : ''} ${isDragTarget ? 'drag-over' : ''}`}
+          className={[
+            'gallery-card',
+            isActive    ? 'active'    : '',
+            img.status === 'done' ? 'done' : '',
+            isDragOver  ? 'drag-over' : '',
+            isDragging  ? 'dragging'  : '',
+          ].filter(Boolean).join(' ')}
           onClick={() => onSelect(img.id)}
-          draggable
-          onDragStart={(e) => handleDragStart(e, index)}
-          onDragOver={(e) => handleDragOver(e, index)}
-          onDrop={(e) => handleDrop(e, index)}
-          onDragEnd={handleDragEnd}
           title={img.name}
+          {...sharedDragProps}
         >
           <div className="gallery-thumb-wrap">
-            <img
-              src={img.processedDataUrl ?? img.originalDataUrl}
-              alt={img.name}
-              className="gallery-thumb"
-              loading="lazy"
-            />
-            <span className="gallery-index">{index + 1}</span>
+            <img src={img.processedDataUrl ?? img.originalDataUrl} alt={img.name}
+              className="gallery-thumb" loading="lazy" />
+            <span className="gallery-index">{realIndex + 1}</span>
             <span className={`gallery-status-dot ${img.status}`} />
           </div>
           <div className="gallery-card-info">
             <span className="gallery-orig-name">{img.name}</span>
-            {hasRename && (
-              <span className="gallery-final-name" title={finalName}>→ {finalName}</span>
-            )}
+            {hasRename && <span className="gallery-final-name" title={finalName}>→ {finalName}</span>}
           </div>
           <div className="gallery-card-actions" onClick={(e) => e.stopPropagation()}>
             {img.status === 'done' && (
@@ -118,42 +161,34 @@ export function ImageQueue({
       );
     }
 
-    // List mode
     return (
       <div
         key={img.id}
-        className={`queue-item ${isActive ? 'active' : ''} ${img.status === 'done' ? 'done' : ''} ${isDragTarget ? 'drag-over' : ''}`}
+        className={[
+          'queue-item',
+          isActive   ? 'active'    : '',
+          img.status === 'done' ? 'done' : '',
+          isDragOver ? 'drag-over' : '',
+          isDragging ? 'dragging'  : '',
+        ].filter(Boolean).join(' ')}
         onClick={() => onSelect(img.id)}
-        draggable
-        onDragStart={(e) => handleDragStart(e, index)}
-        onDragOver={(e) => handleDragOver(e, index)}
-        onDrop={(e) => handleDrop(e, index)}
-        onDragEnd={handleDragEnd}
         title={img.name}
+        {...sharedDragProps}
       >
         <div className="drag-handle" title="Drag to reorder">⠿</div>
-
         <div className="queue-thumb-wrap">
-          <img
-            src={img.processedDataUrl ?? img.originalDataUrl}
-            alt={img.name}
-            className="queue-thumb"
-            loading="lazy"
-          />
-          <span className="queue-index">{index + 1}</span>
+          <img src={img.processedDataUrl ?? img.originalDataUrl} alt={img.name}
+            className="queue-thumb" loading="lazy" />
+          <span className="queue-index">{realIndex + 1}</span>
         </div>
-
         <div className="queue-info">
           <span className="queue-name">{img.name}</span>
-          {hasRename && (
-            <span className="queue-final-name" title={finalName}>→ {finalName}</span>
-          )}
+          {hasRename && <span className="queue-final-name" title={finalName}>→ {finalName}</span>}
           <div className="queue-status-row">
             <StatusIcon status={img.status} />
             <span className={`queue-status-label ${img.status}`}>{img.status}</span>
           </div>
         </div>
-
         <div className="queue-actions" onClick={(e) => e.stopPropagation()}>
           {img.status === 'done' && (
             <button className="queue-action-btn" title="Re-edit" onClick={() => onReset(img.id)}>
@@ -168,55 +203,34 @@ export function ImageQueue({
     );
   };
 
-  // ── Render ───────────────────────────────────────────────────────
   return (
     <aside className="queue-sidebar">
-      {/* Stats bar */}
       <div className="queue-stats">
         <span className="stat done">{doneCount} done</span>
         <span className="stat-sep">/</span>
         <span className="stat pending">{pendingCount} left</span>
         <span className="stat-sep">/</span>
         <span className="stat total">{images.length} total</span>
-
         <div className="view-toggle">
-          <button
-            className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
-            onClick={() => setViewMode('list')}
-            title="List view"
-          >
-            <List size={13} />
-          </button>
-          <button
-            className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
-            onClick={() => setViewMode('grid')}
-            title="Grid view"
-          >
-            <LayoutGrid size={13} />
-          </button>
+          <button className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+            onClick={() => setViewMode('list')} title="List view"><List size={13} /></button>
+          <button className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
+            onClick={() => setViewMode('grid')} title="Grid view"><LayoutGrid size={13} /></button>
         </div>
       </div>
-
-      {/* Progress bar */}
       <div className="progress-bar-track">
-        <div
-          className="progress-bar-fill"
-          style={{ width: images.length ? `${(doneCount / images.length) * 100}%` : '0%' }}
-        />
+        <div className="progress-bar-fill"
+          style={{ width: images.length ? `${(doneCount / images.length) * 100}%` : '0%' }} />
       </div>
-
-      {/* Image list / gallery grid */}
-      <div
-        className={viewMode === 'grid' ? 'gallery-grid' : 'queue-list'}
-        onDragOver={(e) => e.preventDefault()}
-      >
+      <div className={viewMode === 'grid' ? 'gallery-grid' : 'queue-list'}
+        onDragOver={(e) => e.preventDefault()}>
         {images.length === 0 && (
           <div className="queue-empty">
             <p>No images yet.</p>
             <p className="queue-empty-hint">Import images to get started.</p>
           </div>
         )}
-        {images.map((img, index) => renderItem(img, index))}
+        {visImages.map((img, visIdx) => renderItem(img, visIdx))}
       </div>
     </aside>
   );

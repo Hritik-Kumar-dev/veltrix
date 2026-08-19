@@ -1,13 +1,5 @@
 import { useRef } from 'react';
-import {
-  FolderOpen,
-  Download,
-  DownloadCloud,
-  Trash2,
-  Image,
-  Tag,
-  ArrowLeft,
-} from 'lucide-react';
+import { FolderOpen, Download, DownloadCloud, Trash2, Image, Tag, ArrowLeft } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import toast from 'react-hot-toast';
@@ -24,6 +16,17 @@ interface Props {
   view: AppView;
   doneCount: number;
   getFinalName: (img: ImageItem, index: number) => string;
+  zipFilename: string;
+  onZipFilenameChange: (name: string) => void;
+}
+
+/** Sanitise a user-provided filename: strip path chars, collapse spaces, strip .zip suffix */
+function sanitiseZipName(raw: string): string {
+  return raw
+    .replace(/\.zip$/i, '')          // strip trailing .zip
+    .replace(/[/\\:*?"<>|]/g, '_')   // replace illegal chars
+    .replace(/\s+/g, '_')            // collapse whitespace
+    .trim() || 'batch_export';       // fallback
 }
 
 export function Toolbar({
@@ -35,6 +38,8 @@ export function Toolbar({
   view,
   doneCount,
   getFinalName,
+  zipFilename,
+  onZipFilenameChange,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -48,20 +53,21 @@ export function Toolbar({
 
   const handleExportZip = () => {
     if (!images.length) { toast.error('No images to export.'); return; }
+    const finalZipName = sanitiseZipName(zipFilename) + '.zip';
     toast.promise(
       (async () => {
         const zip = new JSZip();
         images.forEach((img, idx) => {
-          const src = img.processedDataUrl ?? img.originalDataUrl;
+          const src    = img.processedDataUrl ?? img.originalDataUrl;
           const base64 = src.split(',')[1];
           zip.file(getFinalName(img, idx), base64, { base64: true });
         });
         const blob = await zip.generateAsync({ type: 'blob' });
-        saveAs(blob, 'batch_export.zip');
+        saveAs(blob, finalZipName);
       })(),
       {
         loading: 'Building ZIP…',
-        success: `Exported ${images.length} image${images.length > 1 ? 's' : ''}`,
+        success: `Exported as ${finalZipName}`,
         error: 'Export failed',
       }
     );
@@ -87,64 +93,55 @@ export function Toolbar({
 
   return (
     <header className="toolbar">
-      {/* Brand */}
       <div className="toolbar-brand">
         <Image size={20} className="brand-icon" />
         <span className="brand-name">BatchCrop</span>
       </div>
 
-      {/* Back button — only visible on rename page */}
       {view === 'rename' && (
-        <button
-          className="toolbar-btn toolbar-back-btn"
-          onClick={onNavigateEditor}
-          title="Return to image editor"
-        >
-          <ArrowLeft size={16} />
-          Back to Editor
+        <button className="toolbar-btn toolbar-back-btn" onClick={onNavigateEditor}>
+          <ArrowLeft size={16} /> Back to Editor
         </button>
       )}
 
-      {/* Right-side actions */}
       <div className="toolbar-actions">
-        {/* Import — hidden on rename page to keep toolbar clean */}
         {view === 'editor' && (
-          <button
-            className="toolbar-btn primary"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <FolderOpen size={16} />
-            Import Images
+          <button className="toolbar-btn primary" onClick={() => fileInputRef.current?.click()}>
+            <FolderOpen size={16} /> Import Images
           </button>
         )}
 
         {view === 'editor' && <div className="toolbar-divider" />}
 
-        {/* Rename / Back toggle */}
         {view === 'editor' ? (
-          <button
-            className="toolbar-btn"
-            onClick={onNavigateRename}
-            title="Open bulk rename workspace"
-          >
-            <Tag size={16} />
-            Rename
+          <button className="toolbar-btn" onClick={onNavigateRename} title="Open bulk rename workspace">
+            <Tag size={16} /> Rename
           </button>
         ) : (
-          /* On rename page, show a subtle "editing view" indicator */
-          <span className="toolbar-view-indicator">
-            <Tag size={14} />
-            Bulk Rename
-          </span>
+          <span className="toolbar-view-indicator"><Tag size={14} /> Bulk Rename</span>
         )}
 
         <div className="toolbar-divider" />
+
+        {/* ZIP filename input */}
+        <div className="zip-name-field" title="Name for the exported ZIP file">
+          <input
+            type="text"
+            className="zip-name-input"
+            value={zipFilename}
+            onChange={(e) => onZipFilenameChange(e.target.value)}
+            placeholder="export_name"
+            spellCheck={false}
+            aria-label="ZIP export filename"
+          />
+          <span className="zip-name-ext">.zip</span>
+        </div>
 
         <button
           className="toolbar-btn"
           onClick={handleExportZip}
           disabled={images.length === 0}
-          title="Export all images as ZIP with generated filenames"
+          title="Export all images as ZIP"
         >
           <DownloadCloud size={16} />
           Export ZIP
@@ -157,8 +154,7 @@ export function Toolbar({
           disabled={images.length === 0}
           title="Download each image individually"
         >
-          <Download size={16} />
-          Download All
+          <Download size={16} /> Download All
         </button>
 
         <div className="toolbar-divider" />
@@ -167,21 +163,13 @@ export function Toolbar({
           className="toolbar-btn danger"
           onClick={handleClearAll}
           disabled={images.length === 0}
-          title="Clear all images"
         >
-          <Trash2 size={16} />
-          Clear All
+          <Trash2 size={16} /> Clear All
         </button>
       </div>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        className="hidden-input"
-        onChange={handleFileChange}
-      />
+      <input ref={fileInputRef} type="file" accept="image/*" multiple
+        className="hidden-input" onChange={handleFileChange} />
     </header>
   );
 }
