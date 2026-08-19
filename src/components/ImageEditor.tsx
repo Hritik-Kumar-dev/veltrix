@@ -1,9 +1,13 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import Cropper from 'react-cropper';
 import type { ReactCropperElement } from 'react-cropper';
-import { RotateCcw, RotateCw, Save, SkipForward, ZoomIn, ZoomOut } from 'lucide-react';
+import { RotateCcw, RotateCw, Save, SkipForward, ZoomIn, ZoomOut, ChevronDown, ChevronUp } from 'lucide-react';
 import 'cropperjs/dist/cropper.css';
-import type { ImageItem, CropData } from '../types';
+import type { ImageItem, CropData, ResizeCompressConfig } from '../types';
+import { DEFAULT_RESIZE_CONFIG } from '../types';
+import { AspectRatioSelector } from './AspectRatioSelector';
+import { ResizeCompressPanel } from './ResizeCompressPanel';
+import { resizeAndCompress, estimateSizeLabel } from '../resizeCompress';
 
 interface Props {
   image: ImageItem;
@@ -11,23 +15,50 @@ interface Props {
   onSave: (id: string, cropData: CropData, processedDataUrl: string) => void;
   onNext: () => void;
   onSaveAndNext: (id: string, cropData: CropData, processedDataUrl: string) => void;
+  onResizeConfigChange: (id: string, cfg: ResizeCompressConfig) => void;
 }
 
-export function ImageEditor({ image, hasNext, onSave, onNext, onSaveAndNext }: Props) {
+export function ImageEditor({
+  image,
+  hasNext,
+  onSave,
+  onNext,
+  onSaveAndNext,
+  onResizeConfigChange,
+}: Props) {
   const cropperRef = useRef<ReactCropperElement>(null);
   const [rotation, setRotation] = useState<number>(image.cropData?.rotate ?? 0);
   const [isSaving, setIsSaving] = useState(false);
+  const [resizePanelOpen, setResizePanelOpen] = useState(false);
+  const [resizeConfig, setResizeConfig] = useState<ResizeCompressConfig>(
+    image.resizeConfig ?? DEFAULT_RESIZE_CONFIG
+  );
+  // Live size estimate shown in the resize panel
+  const [estimatedSize, setEstimatedSize] = useState<string>('');
+  // Track the natural image ratio for the "Original" aspect preset
+  const [originalRatio, setOriginalRatio] = useState<number>(1);
 
-  // Reset rotation when the image changes
+  // ── Sync state when image changes ────────────────────────────────
   useEffect(() => {
     setRotation(image.cropData?.rotate ?? 0);
-  }, [image.id, image.cropData?.rotate]);
+    setResizeConfig(image.resizeConfig ?? DEFAULT_RESIZE_CONFIG);
+    setEstimatedSize('');
+  }, [image.id, image.cropData?.rotate, image.resizeConfig]);
 
-  // Apply rotation to cropper whenever slider changes
+  // ── Propagate resize config changes up to the store ──────────────
+  const handleResizeConfigChange = useCallback(
+    (cfg: ResizeCompressConfig) => {
+      setResizeConfig(cfg);
+      onResizeConfigChange(image.id, cfg);
+      // Clear stale estimate when settings change
+      setEstimatedSize('');
+    },
+    [image.id, onResizeConfigChange]
+  );
+
+  // ── Rotation helpers ─────────────────────────────────────────────
   const applyRotation = useCallback((deg: number) => {
-    const cropper = cropperRef.current?.cropper;
-    if (!cropper) return;
-    cropper.rotateTo(deg);
+    cropperRef.current?.cropper.rotateTo(deg);
   }, []);
 
   const handleRotationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -36,41 +67,44 @@ export function ImageEditor({ image, hasNext, onSave, onNext, onSaveAndNext }: P
     applyRotation(val);
   };
 
-  const handleRotateLeft = () => {
-    const next = rotation - 90;
-    setRotation(next);
-    applyRotation(next);
-  };
+  const handleRotateLeft  = () => { const n = rotation - 90; setRotation(n); applyRotation(n); };
+  const handleRotateRight = () => { const n = rotation + 90; setRotation(n); applyRotation(n); };
 
-  const handleRotateRight = () => {
-    const next = rotation + 90;
-    setRotation(next);
-    applyRotation(next);
-  };
+  // ── Zoom / Reset ─────────────────────────────────────────────────
+  const handleZoomIn    = () => cropperRef.current?.cropper.zoom(0.1);
+  const handleZoomOut   = () => cropperRef.current?.cropper.zoom(-0.1);
+  const handleResetCrop = () => { cropperRef.current?.cropper.reset(); setRotation(0); };
 
-  const handleZoomIn = () => {
-    cropperRef.current?.cropper.zoom(0.1);
-  };
+  // ── Aspect ratio ─────────────────────────────────────────────────
+  const handleRatioChange = useCallback((ratio: number | null) => {
+    const cropper = cropperRef.current?.cropper;
+    if (!cropper) return;
+    // CropperJS: NaN = free, numeric = locked
+    cropper.setAspectRatio(ratio === null ? NaN : ratio);
+  }, []);
 
-  const handleZoomOut = () => {
-    cropperRef.current?.cropper.zoom(-0.1);
-  };
-
-  const handleResetCrop = () => {
-    cropperRef.current?.cropper.reset();
-    setRotation(0);
-  };
-
-  /** Render the cropped/rotated image to a data URL */
+  // ── Core pipeline: crop → resize → compress → dataUrl ────────────
   const getCroppedDataUrl = useCallback((): string | null => {
     const cropper = cropperRef.current?.cropper;
     if (!cropper) return null;
     try {
-      return cropper.getCroppedCanvas({ maxWidth: 4096, maxHeight: 4096 }).toDataURL('image/jpeg', 0.92);
+      // Step 1: get the crop+rotation canvas at full resolution
+      const croppedCanvas = cropper.getCroppedCanvas({ maxWidth: 4096, maxHeight: 4096 });
+
+      // Step 2: apply resize + compression (no-ops when config is all-null)
+      const hasConstraints =
+        resizeConfig.maxWidth !== null ||
+        resizeConfig.maxHeight !== null ||
+        resizeConfig.maxSizeBytes !== null;
+
+      if (!hasConstraints) {
+        return croppedCanvas.toDataURL('image/jpeg', 0.92);
+      }
+      return resizeAndCompress(croppedCanvas, resizeConfig);
     } catch {
       return null;
     }
-  }, []);
+  }, [resizeConfig]);
 
   const buildCropData = useCallback((): CropData => {
     const cropper = cropperRef.current?.cropper;
@@ -87,12 +121,13 @@ export function ImageEditor({ image, hasNext, onSave, onNext, onSaveAndNext }: P
     };
   }, [rotation]);
 
+  // ── Save actions ─────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     const dataUrl = getCroppedDataUrl();
     if (!dataUrl) { setIsSaving(false); return; }
-    const cropData = buildCropData();
-    onSave(image.id, cropData, dataUrl);
+    setEstimatedSize(estimateSizeLabel(dataUrl));
+    onSave(image.id, buildCropData(), dataUrl);
     setIsSaving(false);
   }, [image.id, getCroppedDataUrl, buildCropData, onSave]);
 
@@ -100,77 +135,66 @@ export function ImageEditor({ image, hasNext, onSave, onNext, onSaveAndNext }: P
     setIsSaving(true);
     const dataUrl = getCroppedDataUrl();
     if (!dataUrl) { setIsSaving(false); return; }
-    const cropData = buildCropData();
-    onSaveAndNext(image.id, cropData, dataUrl);
+    onSaveAndNext(image.id, buildCropData(), dataUrl);
     setIsSaving(false);
   }, [image.id, getCroppedDataUrl, buildCropData, onSaveAndNext]);
 
-  // Keyboard shortcuts — active whenever the editor is mounted
+  // ── Keyboard shortcuts ───────────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Don't fire when the user is typing in an input/textarea/contenteditable
       const target = e.target as HTMLElement;
       if (
         target.tagName === 'INPUT' ||
         target.tagName === 'TEXTAREA' ||
         target.tagName === 'SELECT' ||
         target.isContentEditable
-      ) {
-        return;
-      }
+      ) return;
 
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
         const step = e.ctrlKey ? -90 : -1;
-        setRotation((prev) => {
-          const next = prev + step;
-          applyRotation(next);
-          return next;
-        });
+        setRotation((prev) => { const n = prev + step; applyRotation(n); return n; });
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
         const step = e.ctrlKey ? 90 : 1;
-        setRotation((prev) => {
-          const next = prev + step;
-          applyRotation(next);
-          return next;
-        });
+        setRotation((prev) => { const n = prev + step; applyRotation(n); return n; });
       } else if (e.key === ' ') {
-        // Prevent page scroll
         e.preventDefault();
-        // Trigger Save & Next (or just Save if no next image)
-        if (hasNext) {
-          handleSaveAndNext();
-        } else {
-          handleSave();
-        }
+        if (hasNext) handleSaveAndNext(); else handleSave();
       }
     };
-
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [applyRotation, hasNext, handleSave, handleSaveAndNext]);
 
-  // Restore crop box from saved state after cropper is ready
+  // ── Restore saved crop state after cropper is ready ──────────────
   const onCropperReady = useCallback(() => {
     const cropper = cropperRef.current?.cropper;
-    if (!cropper || !image.cropData) return;
+    if (!cropper) return;
+
+    // Record the natural image ratio for the "Original" aspect preset
+    const imgData = cropper.getImageData();
+    if (imgData.naturalWidth && imgData.naturalHeight) {
+      setOriginalRatio(imgData.naturalWidth / imgData.naturalHeight);
+    }
+
+    if (!image.cropData) return;
     const cd = image.cropData;
     cropper.rotateTo(cd.rotate);
-    // Small delay to let the rotation settle before restoring crop box
     setTimeout(() => {
-      cropper.setCropBoxData({
-        left: cd.x,
-        top: cd.y,
-        width: cd.width,
-        height: cd.height,
-      });
+      cropper.setCropBoxData({ left: cd.x, top: cd.y, width: cd.width, height: cd.height });
     }, 50);
   }, [image.cropData]);
 
+  // ── Derived: does resize config have any active constraint? ──────
+  const hasResizeActive =
+    resizeConfig.maxWidth !== null ||
+    resizeConfig.maxHeight !== null ||
+    resizeConfig.maxSizeBytes !== null;
+
   return (
     <div className="editor-container">
-      {/* Image name header */}
+      {/* Header */}
       <div className="editor-header">
         <span className="editor-filename">{image.name}</span>
         <span className={`editor-status-badge ${image.status}`}>{image.status}</span>
@@ -200,29 +224,36 @@ export function ImageEditor({ image, hasNext, onSave, onNext, onSaveAndNext }: P
 
       {/* Controls */}
       <div className="editor-controls">
-        {/* Rotation row */}
+
+        {/* ── Aspect Ratio row ── */}
+        <div className="control-row control-row--aspect">
+          <label className="control-label">Ratio</label>
+          <AspectRatioSelector
+            onRatioChange={handleRatioChange}
+            originalRatio={originalRatio}
+          />
+        </div>
+
+        {/* ── Rotation row ── */}
         <div className="control-row">
           <label className="control-label">Rotate</label>
           <div className="rotate-controls">
-            <button className="icon-btn" onClick={handleRotateLeft} title="Rotate -90°">
+            <button className="icon-btn" onClick={handleRotateLeft} title="Rotate -90° (Ctrl+←)">
               <RotateCcw size={16} />
             </button>
             <input
               type="range"
-              min={-180}
-              max={180}
-              step={1}
+              min={-180} max={180} step={1}
               value={rotation}
               onChange={handleRotationChange}
               className="rotate-slider"
             />
-            <button className="icon-btn" onClick={handleRotateRight} title="Rotate +90°">
+            <button className="icon-btn" onClick={handleRotateRight} title="Rotate +90° (Ctrl+→)">
               <RotateCw size={16} />
             </button>
             <input
               type="number"
-              min={-180}
-              max={180}
+              min={-180} max={180}
               value={rotation}
               onChange={handleRotationChange}
               className="rotate-number"
@@ -231,16 +262,12 @@ export function ImageEditor({ image, hasNext, onSave, onNext, onSaveAndNext }: P
           </div>
         </div>
 
-        {/* Zoom row */}
+        {/* ── Zoom / Reset row ── */}
         <div className="control-row">
           <label className="control-label">Zoom</label>
           <div className="zoom-controls">
-            <button className="icon-btn" onClick={handleZoomOut} title="Zoom out">
-              <ZoomOut size={16} />
-            </button>
-            <button className="icon-btn" onClick={handleZoomIn} title="Zoom in">
-              <ZoomIn size={16} />
-            </button>
+            <button className="icon-btn" onClick={handleZoomOut} title="Zoom out"><ZoomOut size={16} /></button>
+            <button className="icon-btn" onClick={handleZoomIn}  title="Zoom in"><ZoomIn  size={16} /></button>
             <button className="icon-btn secondary" onClick={handleResetCrop} title="Reset crop &amp; rotation">
               <RotateCcw size={14} />
               <span className="btn-label">Reset</span>
@@ -248,43 +275,47 @@ export function ImageEditor({ image, hasNext, onSave, onNext, onSaveAndNext }: P
           </div>
         </div>
 
-        {/* Action buttons */}
-        <div className="editor-actions">
+        {/* ── Resize & Compress toggle ── */}
+        <div className="control-row">
           <button
-            className="action-btn primary"
-            onClick={handleSave}
-            disabled={isSaving}
-            title="Save (or press Space when no next image)"
+            className={`resize-toggle-btn ${resizePanelOpen ? 'open' : ''} ${hasResizeActive ? 'has-active' : ''}`}
+            onClick={() => setResizePanelOpen((o) => !o)}
           >
-            <Save size={16} />
-            Save
+            {resizePanelOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+            Resize &amp; Compress
+            {hasResizeActive && <span className="resize-active-dot" />}
+          </button>
+        </div>
+
+        {resizePanelOpen && (
+          <ResizeCompressPanel
+            config={resizeConfig}
+            onChange={handleResizeConfigChange}
+            estimatedSize={estimatedSize}
+          />
+        )}
+
+        {/* ── Action buttons ── */}
+        <div className="editor-actions">
+          <button className="action-btn primary" onClick={handleSave} disabled={isSaving}
+            title="Save (Space)">
+            <Save size={16} /> Save
           </button>
           {hasNext && (
-            <button
-              className="action-btn success"
-              onClick={handleSaveAndNext}
-              disabled={isSaving}
-              title="Save &amp; go to next image (Space)"
-            >
-              <Save size={16} />
-              Save &amp; Next
-              <SkipForward size={16} />
+            <button className="action-btn success" onClick={handleSaveAndNext} disabled={isSaving}
+              title="Save &amp; go to next image (Space)">
+              <Save size={16} /> Save &amp; Next <SkipForward size={16} />
               <kbd className="kbd">Space</kbd>
             </button>
           )}
           {hasNext && (
-            <button
-              className="action-btn secondary"
-              onClick={onNext}
-              disabled={isSaving}
-            >
-              <SkipForward size={16} />
-              Skip
+            <button className="action-btn secondary" onClick={onNext} disabled={isSaving}>
+              <SkipForward size={16} /> Skip
             </button>
           )}
         </div>
 
-        {/* Keyboard shortcut hints */}
+        {/* ── Keyboard hints ── */}
         <div className="kbd-hints">
           <span className="kbd-hint"><kbd className="kbd">←</kbd><kbd className="kbd">→</kbd> Rotate 1°</span>
           <span className="kbd-hint"><kbd className="kbd">Ctrl</kbd><kbd className="kbd">←</kbd><kbd className="kbd">→</kbd> Rotate 90°</span>

@@ -682,6 +682,318 @@ img {
 }
 
 /* =============================================
+   Aspect Ratio Selector
+   ============================================= */
+
+.control-row--aspect {
+  align-items: flex-start;
+  padding-top: 2px;
+}
+
+.ar-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ar-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ar-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  min-width: 40px;
+  transition: background var(--trans), border-color var(--trans), color var(--trans);
+}
+
+.ar-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-light);
+}
+
+.ar-btn.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.ar-btn-label {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ar-btn-sub {
+  font-size: 8px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.ar-btn.active .ar-btn-sub {
+  color: var(--accent);
+  opacity: 0.75;
+}
+
+.ar-custom-inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ar-custom-input {
+  width: 64px;
+  text-align: center;
+  font-size: 12px;
+  padding: 3px 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.ar-custom-input::-webkit-outer-spin-button,
+.ar-custom-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+
+.ar-custom-input:focus {
+  border-color: var(--accent);
+}
+
+.ar-custom-sep {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.ar-custom-unit {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* =============================================
+   Resize & Compress Panel
+   ============================================= */
+
+.resize-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.resize-toggle-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-light);
+}
+
+.resize-toggle-btn.open {
+  background: var(--bg-active);
+  border-color: var(--border-light);
+  color: var(--text-primary);
+}
+
+.resize-toggle-btn.has-active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.resize-active-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-left: 2px;
+}
+
+.rc-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-top: -4px;
+}
+
+.rc-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rc-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rc-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.rc-preset-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.rc-preset-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-light);
+}
+
+.rc-preset-btn.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.rc-dim-inputs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rc-dim-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.rc-dim-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.rc-dim-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rc-dim-input {
+  width: 80px;
+  padding: 4px 7px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.rc-dim-input::-webkit-outer-spin-button,
+.rc-dim-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+
+.rc-dim-input:focus {
+  border-color: var(--accent);
+}
+
+.rc-dim-unit {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.rc-current-constraint {
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  align-self: flex-start;
+}
+
+.rc-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.rc-checkbox {
+  width: 13px;
+  height: 13px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.rc-checkbox-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.rc-estimate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 8px;
+  background: var(--green-dim);
+  border: 1px solid rgba(74, 222, 128, 0.25);
+  border-radius: var(--radius-sm);
+}
+
+.rc-estimate-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.rc-estimate-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--green);
+}
+
+/* =============================================
    Keyboard shortcut hints
    ============================================= */
 

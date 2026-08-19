@@ -27,6 +27,7 @@ function App() {
     reorderImages,
     setRenameConfig,
     resetRenameConfig,
+    setResizeConfig,
     clearAll,
     doneCount,
     pendingCount,
@@ -120,6 +121,7 @@ function App() {
                 onSave={handleSave}
                 onNext={goToNext}
                 onSaveAndNext={handleSaveAndNext}
+                onResizeConfigChange={setResizeConfig}
               />
             ) : (
               <EmptyState hasImages={images.length > 0} onImport={addImages} />

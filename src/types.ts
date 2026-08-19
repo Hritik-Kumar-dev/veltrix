@@ -10,6 +10,28 @@ export interface CropData {
   scaleY: number;
 }
 
+/**
+ * Resize & Compress settings stored per image.
+ * null means "use original dimensions / no size limit".
+ */
+export interface ResizeCompressConfig {
+  /** Target max width in pixels. null = no constraint. */
+  maxWidth: number | null;
+  /** Target max height in pixels. null = no constraint. */
+  maxHeight: number | null;
+  /** Whether to lock the output aspect ratio when only one dimension is set. */
+  maintainAspectRatio: boolean;
+  /** Target max file size in bytes. null = no constraint. */
+  maxSizeBytes: number | null;
+}
+
+export const DEFAULT_RESIZE_CONFIG: ResizeCompressConfig = {
+  maxWidth: null,
+  maxHeight: null,
+  maintainAspectRatio: true,
+  maxSizeBytes: null,
+};
+
 export interface ImageItem {
   /** Unique identifier */
   id: string;
@@ -23,6 +45,8 @@ export interface ImageItem {
   status: ImageStatus;
   /** Saved crop/rotate state so editing can resume */
   cropData: CropData | null;
+  /** Resize & Compress settings for this image */
+  resizeConfig: ResizeCompressConfig;
   /** Timestamp when added */
   addedAt: number;
   /** Timestamp when marked done */

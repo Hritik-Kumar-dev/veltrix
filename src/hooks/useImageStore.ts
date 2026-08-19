@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { ImageItem, CropData, ImageStatus, RenameConfig } from '../types';
-import { DEFAULT_RENAME_CONFIG } from '../types';
+import type { ImageItem, CropData, ImageStatus, RenameConfig, ResizeCompressConfig } from '../types';
+import { DEFAULT_RENAME_CONFIG, DEFAULT_RESIZE_CONFIG } from '../types';
 
 const STORAGE_KEY = 'narayan_image_store';
 const RENAME_KEY  = 'narayan_rename_config';
@@ -13,7 +13,13 @@ const MAX_STORAGE_IMAGES = 200;
 function loadImages(): ImageItem[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as ImageItem[]) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as ImageItem[];
+    // Backfill resizeConfig for images saved before this field existed
+    return parsed.map((img) => ({
+      ...img,
+      resizeConfig: img.resizeConfig ?? { ...DEFAULT_RESIZE_CONFIG },
+    }));
   } catch {
     return [];
   }
@@ -69,6 +75,8 @@ export interface UseImageStore {
   setRenameConfig: (cfg: RenameConfig) => void;
   /** Reset rename config to defaults (preserves edit state) */
   resetRenameConfig: () => void;
+  /** Update resize/compress settings for a single image */
+  setResizeConfig: (id: string, cfg: ResizeCompressConfig) => void;
   /** Clear all images AND rename config */
   clearAll: () => void;
   /** Count helpers */
@@ -119,6 +127,7 @@ export function useImageStore(): UseImageStore {
           processedDataUrl: null,
           status: 'pending' as ImageStatus,
           cropData: null,
+          resizeConfig: { ...DEFAULT_RESIZE_CONFIG },
           addedAt: Date.now(),
           doneAt: null,
         };
@@ -210,6 +219,12 @@ export function useImageStore(): UseImageStore {
     setRenameConfigState(DEFAULT_RENAME_CONFIG);
   }, []);
 
+  const setResizeConfig = useCallback((id: string, cfg: ResizeCompressConfig) => {
+    setImages((prev) =>
+      prev.map((img) => (img.id === id ? { ...img, resizeConfig: cfg } : img))
+    );
+  }, []);
+
   const clearAll = useCallback(() => {
     setImages([]);
     setActiveIdState(null);
@@ -239,6 +254,7 @@ export function useImageStore(): UseImageStore {
     reorderImages,
     setRenameConfig,
     resetRenameConfig,
+    setResizeConfig,
     clearAll,
     doneCount,
     pendingCount,
