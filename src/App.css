@@ -1131,6 +1131,7 @@ img {
 
 /* Thumbnail */
 .rp-card-thumb-wrap {
+  position: relative;
   width: 100%;
   aspect-ratio: 4 / 3;
   overflow: hidden;
@@ -1204,7 +1205,26 @@ img {
 
 .rp-badge.done    { background: var(--green-dim);  color: var(--green); }
 .rp-badge.editing { background: var(--blue-dim);   color: var(--blue);  }
+.rp-badge.in-progress { background: var(--blue-dim); color: var(--blue); }
 .rp-badge.pending { background: var(--bg-hover);   color: var(--text-muted); }
+
+/* Unsaved-edits overlay on thumbnail */
+.rp-card-unsaved {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(251, 191, 36, 0.82); /* amber */
+  color: #000;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+  padding: 3px 6px;
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
 
 /* =============================================
    Rename Controls panel (right)

@@ -4,7 +4,6 @@ import {
   Tag,
   CheckCircle2,
   Clock,
-  Pencil,
   GripVertical,
 } from 'lucide-react';
 import type { ImageItem, RenameConfig } from '../types';
@@ -23,8 +22,8 @@ function StatusBadge({ status }: { status: ImageItem['status'] }) {
     );
   if (status === 'editing')
     return (
-      <span className="rp-badge editing">
-        <Pencil size={10} /> editing
+      <span className="rp-badge in-progress">
+        <Clock size={10} /> in progress
       </span>
     );
   return (
@@ -64,6 +63,11 @@ function RenameCard({
   const finalName = generateFinalName(img.name, index, config);
   const changed = finalName !== img.name;
 
+  // Use the saved/processed version when available (reflects crop + rotation).
+  // For images not yet saved, fall back to the original — and show an indicator.
+  const previewSrc = img.processedDataUrl ?? img.originalDataUrl;
+  const hasUnsavedEdits = img.status !== 'done' && img.cropData !== null;
+
   return (
     <div
       className={`rp-card ${isDragOver ? 'rp-card--drag-over' : ''} ${isDragging ? 'rp-card--dragging' : ''}`}
@@ -73,7 +77,7 @@ function RenameCard({
       onDrop={(e) => onDrop(e, index)}
       onDragEnd={onDragEnd}
     >
-      {/* Drag handle — top-left grip */}
+      {/* Drag handle — top-right grip */}
       <div className="rp-card-grip">
         <GripVertical size={14} />
       </div>
@@ -81,15 +85,21 @@ function RenameCard({
       {/* Position badge */}
       <span className="rp-card-index">{index + 1}</span>
 
-      {/* Thumbnail */}
+      {/* Thumbnail — always the latest saved edit, or original if not yet saved */}
       <div className="rp-card-thumb-wrap">
         <img
-          src={img.processedDataUrl ?? img.originalDataUrl}
+          src={previewSrc}
           alt={img.name}
           className="rp-card-thumb"
           loading="lazy"
           draggable={false}
         />
+        {/* Overlay shown when edits exist but haven't been saved yet */}
+        {hasUnsavedEdits && (
+          <div className="rp-card-unsaved" title="Edits not yet saved — return to editor and click Save to reflect them here">
+            unsaved edits
+          </div>
+        )}
       </div>
 
       {/* Name block */}
@@ -102,7 +112,7 @@ function RenameCard({
         </span>
       </div>
 
-      {/* Status */}
+      {/* Status — read-only indicator, no editing affordance */}
       <div className="rp-card-footer">
         <StatusBadge status={img.status} />
       </div>
