@@ -13,6 +13,8 @@ interface Props {
   onReorder: (fromIndex: number, toIndex: number) => void;
   doneCount: number;
   pendingCount: number;
+  /** Live thumbnail from the open editor; null when nothing is editing. */
+  previewDataUrl?: string | null;
 }
 
 type ViewMode = 'list' | 'grid';
@@ -26,7 +28,7 @@ function StatusIcon({ status }: { status: ImageItem['status'] }) {
 export function ImageQueue({
   images, activeId, renameConfig,
   onSelect, onRemove, onReset, onReorder,
-  doneCount, pendingCount,
+  doneCount, pendingCount, previewDataUrl,
 }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
 
@@ -232,6 +234,20 @@ export function ImageQueue({
         )}
         {visImages.map((img, visIdx) => renderItem(img, visIdx))}
       </div>
+
+      {/* ── Live preview panel ── */}
+      {previewDataUrl && (
+        <div className="queue-preview-panel">
+          <span className="queue-preview-label">Preview</span>
+          <div className="queue-preview-img-wrap">
+            <img
+              src={previewDataUrl}
+              alt="Live preview"
+              className="queue-preview-img"
+            />
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

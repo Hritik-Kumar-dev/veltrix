@@ -24,6 +24,8 @@ function App() {
   } = useImageStore();
 
   const [view, setView] = useState<AppView>('editor');
+  /** Live thumbnail from the currently-open editor, updated as the user edits. */
+  const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
 
   const hasNext = images.some((img) => img.status !== 'done' && img.id !== activeId);
 
@@ -91,6 +93,7 @@ function App() {
             onReorder={reorderImages}
             doneCount={doneCount}
             pendingCount={pendingCount}
+            previewDataUrl={previewDataUrl}
           />
 
           <section className="editor-section">
@@ -105,6 +108,7 @@ function App() {
                 onSaveAndNext={handleSaveAndNext}
                 onResizeConfigChange={setResizeConfig}
                 onGlobalsChange={setEditorGlobals}
+                onPreviewChange={setPreviewDataUrl}
               />
             ) : (
               <EmptyState hasImages={images.length > 0} onImport={addImages} />

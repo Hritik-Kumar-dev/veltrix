@@ -2001,8 +2001,55 @@ img {
 }
 
 /* =============================================
-   Scrollbar styling
+   Queue sidebar — live preview panel
    ============================================= */
+
+.queue-preview-panel {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  padding: 8px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--bg-surface);
+}
+
+.queue-preview-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.queue-preview-img-wrap {
+  width: 100%;
+  max-height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.queue-preview-img {
+  max-width: 100%;
+  max-height: 140px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+/* Scrollable queue list should flex-shrink when preview is visible */
+.queue-list,
+.gallery-grid {
+  flex: 1;
+  min-height: 0;
+}
 
 ::-webkit-scrollbar {
   width: 5px;
