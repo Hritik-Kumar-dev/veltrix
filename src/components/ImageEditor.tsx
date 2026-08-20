@@ -48,6 +48,9 @@ export function ImageEditor({
 
   const [cropMode, setCropMode]     = useState<CropMode>('standard');
   const [rotation, setRotation]     = useState(image.cropData?.rotate ?? 0);
+  // Mirror of rotation state readable from debounced/async callbacks without
+  // stale-closure problems.
+  const rotationRef = useRef<number>(image.cropData?.rotate ?? 0);
   const [isSaving, setIsSaving]     = useState(false);
   const [resizePanelOpen, setResizePanelOpen] = useState(false);
   const [resizeConfig, setResizeConfigState]  = useState<ResizeCompressConfig>(
@@ -66,6 +69,26 @@ export function ImageEditor({
     };
   }, []);
 
+  // ── Rotate a canvas by degrees (clockwise) ───────────────────────
+  // Mirrors the rotation convention used by CropperJS.
+  // Returns a new canvas sized to contain the full rotated image.
+  // Declared before schedulePreview so the latter can reference it.
+  const rotateCanvas = useCallback((src: HTMLCanvasElement, degrees: number): HTMLCanvasElement => {
+    const rad  = (degrees * Math.PI) / 180;
+    const sin  = Math.abs(Math.sin(rad));
+    const cos  = Math.abs(Math.cos(rad));
+    const outW = Math.round(src.width  * cos + src.height * sin);
+    const outH = Math.round(src.width  * sin + src.height * cos);
+    const out  = document.createElement('canvas');
+    out.width  = outW;
+    out.height = outH;
+    const ctx  = out.getContext('2d')!;
+    ctx.translate(outW / 2, outH / 2);
+    ctx.rotate(rad);
+    ctx.drawImage(src, -src.width / 2, -src.height / 2);
+    return out;
+  }, []);
+
   /**
    * Generate a small thumbnail from the current editing state and call
    * onPreviewChange.  Uses a 150 ms debounce so handle-drags or slider
@@ -80,7 +103,11 @@ export function ImageEditor({
         let sourceCanvas: HTMLCanvasElement | null = null;
 
         if (cropMode === 'perspective') {
-          sourceCanvas = perspRef.current?.getCroppedCanvas() ?? null;
+          const pc = perspRef.current?.getCroppedCanvas() ?? null;
+          if (pc) {
+            // Apply rotation to the perspective crop result, matching the save path.
+            sourceCanvas = rotationRef.current !== 0 ? rotateCanvas(pc, rotationRef.current) : pc;
+          }
         } else {
           const cropper = cropperRef.current?.cropper;
           if (cropper) {
@@ -106,11 +133,13 @@ export function ImageEditor({
         onPreviewChange(null);
       }
     }, 150);
-  }, [cropMode, onPreviewChange]);
+  }, [cropMode, onPreviewChange, rotateCanvas]);
 
   // ── Sync per-image state on image switch ──────────────────────────
   useEffect(() => {
-    setRotation(image.cropData?.rotate ?? 0);
+    const r = image.cropData?.rotate ?? 0;
+    rotationRef.current = r;
+    setRotation(r);
     // Apply locked resize config if set
     const effectiveResize = editorGlobals.lockedResizeConfig ?? image.resizeConfig ?? DEFAULT_RESIZE_CONFIG;
     setResizeConfigState(effectiveResize);
@@ -146,16 +175,17 @@ export function ImageEditor({
 
   const handleRotationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = Number(e.target.value);
+    rotationRef.current = val;
     setRotation(val);
     applyRotation(val);
     schedulePreview();
   };
 
-  const handleRotateLeft  = () => { const n = rotation - 90; setRotation(n); applyRotation(n); schedulePreview(); };
-  const handleRotateRight = () => { const n = rotation + 90; setRotation(n); applyRotation(n); schedulePreview(); };
+  const handleRotateLeft  = () => { const n = rotation - 90; rotationRef.current = n; setRotation(n); applyRotation(n); schedulePreview(); };
+  const handleRotateRight = () => { const n = rotation + 90; rotationRef.current = n; setRotation(n); applyRotation(n); schedulePreview(); };
   const handleZoomIn      = () => { cropperRef.current?.cropper.zoom(0.1);  schedulePreview(); };
   const handleZoomOut     = () => { cropperRef.current?.cropper.zoom(-0.1); schedulePreview(); };
-  const handleResetCrop   = () => { cropperRef.current?.cropper.reset(); setRotation(0); schedulePreview(); };
+  const handleResetCrop   = () => { cropperRef.current?.cropper.reset(); rotationRef.current = 0; setRotation(0); schedulePreview(); };
 
   // ── Aspect ratio change ───────────────────────────────────────────
   const handleRatioChange = useCallback((ratio: number | null) => {
@@ -170,20 +200,21 @@ export function ImageEditor({
       let sourceCanvas: HTMLCanvasElement;
 
       if (cropMode === 'perspective') {
+        // getCroppedCanvas() returns the perspective warp of the ORIGINAL
+        // (unrotated) image.  We then apply the current rotation so the
+        // final result matches what the user sees in the preview.
         const pc = perspRef.current?.getCroppedCanvas();
         if (!pc) return null;
-        // Rotation is already baked into the perspective canvas (the overlay
-        // renders the rotated image and maps handles accordingly), so no
-        // additional rotation step is needed here.
-        sourceCanvas = pc;
+        sourceCanvas = rotation !== 0 ? rotateCanvas(pc, rotation) : pc;
       } else {
         const cropper = cropperRef.current?.cropper;
         if (!cropper) return null;
+        // CropperJS bakes rotation into getCroppedCanvas() internally.
         sourceCanvas = cropper.getCroppedCanvas({ maxWidth: 4096, maxHeight: 4096 });
       }
 
       const hasConstraints =
-        resizeConfig.maxWidth !== null ||
+        resizeConfig.maxWidth  !== null ||
         resizeConfig.maxHeight !== null ||
         resizeConfig.maxSizeBytes !== null;
 
@@ -191,7 +222,7 @@ export function ImageEditor({
         ? resizeAndCompress(sourceCanvas, resizeConfig)
         : sourceCanvas.toDataURL('image/jpeg', 0.92);
     } catch { return null; }
-  }, [cropMode, resizeConfig]);
+  }, [cropMode, resizeConfig, rotation, rotateCanvas]);
 
   const buildCropData = useCallback((): CropData => {
     const cropper = cropperRef.current?.cropper;
@@ -232,11 +263,11 @@ export function ImageEditor({
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
         const step = e.ctrlKey ? -90 : -1;
-        setRotation((p) => { const n = p + step; applyRotation(n); schedulePreview(); return n; });
+        setRotation((p) => { const n = p + step; rotationRef.current = n; applyRotation(n); schedulePreview(); return n; });
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
         const step = e.ctrlKey ? 90 : 1;
-        setRotation((p) => { const n = p + step; applyRotation(n); schedulePreview(); return n; });
+        setRotation((p) => { const n = p + step; rotationRef.current = n; applyRotation(n); schedulePreview(); return n; });
       } else if (e.key === ' ') {
         e.preventDefault();
         if (hasNext) handleSaveAndNext(); else handleSave();
