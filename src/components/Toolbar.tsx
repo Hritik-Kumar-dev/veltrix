@@ -1,15 +1,18 @@
-import { useRef } from 'react';
-import { FolderOpen, Download, DownloadCloud, Trash2, Image, Tag, ArrowLeft } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { FolderOpen, Download, DownloadCloud, Trash2, Image, Tag, ArrowLeft, Loader2 } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import toast from 'react-hot-toast';
 import type { ImageItem } from '../types';
+import { pdfToImageItems } from '../pdfUtils';
 
 type AppView = 'editor' | 'rename';
 
 interface Props {
   images: ImageItem[];
   onImport: (files: File[]) => Promise<void>;
+  /** Called with pre-built ImageItems (e.g. from PDF conversion) */
+  onImportItems: (items: ImageItem[]) => void;
   onClearAll: () => void;
   onNavigateRename: () => void;
   onNavigateEditor: () => void;
@@ -32,6 +35,7 @@ function sanitiseZipName(raw: string): string {
 export function Toolbar({
   images,
   onImport,
+  onImportItems,
   onClearAll,
   onNavigateRename,
   onNavigateEditor,
@@ -42,13 +46,43 @@ export function Toolbar({
   onZipFilenameChange,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    if (!files.length) return;
-    await onImport(files);
-    toast.success(`Imported ${files.length} image${files.length > 1 ? 's' : ''}`);
-    e.target.value = '';
+    const allFiles = Array.from(e.target.files ?? []);
+    if (!allFiles.length) return;
+
+    // Partition into images and PDFs
+    const imageFiles = allFiles.filter((f) => f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf'));
+    const pdfFiles   = allFiles.filter((f) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+
+    setImporting(true);
+    try {
+      // Import regular image files
+      if (imageFiles.length > 0) {
+        await onImport(imageFiles);
+        toast.success(`Imported ${imageFiles.length} image${imageFiles.length > 1 ? 's' : ''}`);
+      }
+
+      // Convert PDFs page-by-page and import as image items
+      for (const pdfFile of pdfFiles) {
+        await toast.promise(
+          (async () => {
+            const items = await pdfToImageItems(pdfFile);
+            onImportItems(items);
+            return items.length;
+          })(),
+          {
+            loading: `Converting ${pdfFile.name}…`,
+            success: (n) => `${pdfFile.name}: ${n} page${n > 1 ? 's' : ''} imported`,
+            error:   (err) => `Failed to import ${pdfFile.name}: ${String(err)}`,
+          }
+        );
+      }
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
   };
 
   const handleExportZip = () => {
@@ -106,8 +140,15 @@ export function Toolbar({
 
       <div className="toolbar-actions">
         {view === 'editor' && (
-          <button className="toolbar-btn primary" onClick={() => fileInputRef.current?.click()}>
-            <FolderOpen size={16} /> Import Images
+          <button
+            className="toolbar-btn primary"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+          >
+            {importing
+              ? <><Loader2 size={16} className="spin" /> Importing…</>
+              : <><FolderOpen size={16} /> Import</>
+            }
           </button>
         )}
 
@@ -168,8 +209,15 @@ export function Toolbar({
         </button>
       </div>
 
-      <input ref={fileInputRef} type="file" accept="image/*" multiple
-        className="hidden-input" onChange={handleFileChange} />
+      {/* Accept images AND PDFs */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,application/pdf,.pdf"
+        multiple
+        className="hidden-input"
+        onChange={handleFileChange}
+      />
     </header>
   );
 }

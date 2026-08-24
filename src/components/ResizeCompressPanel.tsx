@@ -193,7 +193,7 @@ export function ResizeCompressPanel({ config, onChange, estimatedSize, locked, o
         )}
       </div>
 
-      {estimatedSize && (
+     {estimatedSize && (
         <div className="rc-estimate">
           <span className="rc-estimate-label">Est. output size</span>
           <span className="rc-estimate-value">{estimatedSize}</span>

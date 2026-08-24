@@ -1,11 +1,12 @@
 import { useState, useCallback } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { useImageStore } from './hooks/useImageStore';
-import { Toolbar }      from './components/Toolbar';
-import { ImageQueue }   from './components/ImageQueue';
-import { ImageEditor }  from './components/ImageEditor';
-import { EmptyState }   from './components/EmptyState';
-import { RenamePage }   from './components/RenamePage';
+import { Toolbar }           from './components/Toolbar';
+import { ImageQueue }        from './components/ImageQueue';
+import { ImageEditor }       from './components/ImageEditor';
+import { EmptyState }        from './components/EmptyState';
+import { RenamePage }        from './components/RenamePage';
+import { UndoDeleteBanner }  from './components/UndoDeleteBanner';
 import { generateFinalName } from './renameUtils';
 import type { CropData, ImageItem } from './types';
 import './App.css';
@@ -16,8 +17,9 @@ function App() {
   const {
     images, activeId, activeImage,
     renameConfig, editorGlobals,
-    addImages, setActiveId, saveImage, goToNext,
-    removeImage, resetImage, reorderImages,
+    pendingDelete,
+    addImages, addImageItems, setActiveId, saveImage, goToNext,
+    removeImage, undoDelete, resetImage, reorderImages, duplicateImage,
     setRenameConfig, resetRenameConfig,
     setResizeConfig, setEditorGlobals,
     clearAll, doneCount, pendingCount,
@@ -59,6 +61,7 @@ function App() {
       <Toolbar
         images={images}
         onImport={addImages}
+        onImportItems={addImageItems}
         onClearAll={clearAll}
         onNavigateRename={() => setView('rename')}
         onNavigateEditor={() => setView('editor')}
@@ -91,6 +94,7 @@ function App() {
             onRemove={removeImage}
             onReset={resetImage}
             onReorder={reorderImages}
+            onDuplicate={duplicateImage}
             doneCount={doneCount}
             pendingCount={pendingCount}
             previewDataUrl={previewDataUrl}
@@ -115,6 +119,14 @@ function App() {
             )}
           </section>
         </main>
+      )}
+
+      {/* Undo-delete banner — rendered outside the main layout so it floats above everything */}
+      {pendingDelete && (
+        <UndoDeleteBanner
+          pendingDelete={pendingDelete}
+          onUndo={undoDelete}
+        />
       )}
     </div>
   );

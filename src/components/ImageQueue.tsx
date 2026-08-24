@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { CheckCircle2, Clock, Pencil, Trash2, RotateCcw, LayoutGrid, List } from 'lucide-react';
+import { CheckCircle2, Clock, Pencil, Trash2, RotateCcw, LayoutGrid, List, Copy } from 'lucide-react';
 import type { ImageItem, RenameConfig } from '../types';
 import { generateFinalName } from '../renameUtils';
 
@@ -11,6 +11,7 @@ interface Props {
   onRemove: (id: string) => void;
   onReset: (id: string) => void;
   onReorder: (fromIndex: number, toIndex: number) => void;
+  onDuplicate: (id: string) => void;
   doneCount: number;
   pendingCount: number;
   /** Live thumbnail from the open editor; null when nothing is editing. */
@@ -27,7 +28,7 @@ function StatusIcon({ status }: { status: ImageItem['status'] }) {
 
 export function ImageQueue({
   images, activeId, renameConfig,
-  onSelect, onRemove, onReset, onReorder,
+  onSelect, onRemove, onReset, onReorder, onDuplicate,
   doneCount, pendingCount, previewDataUrl,
 }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -80,7 +81,6 @@ export function ImageQueue({
     e.preventDefault();
     const fromIndex = dragIndexRef.current;
     // Commit via real images array positions
-    // We need to translate from visual order back to real indices
     if (fromIndex !== null && fromIndex !== toIndex) {
       const realImages = images;
       const dragged = visualOrder[toIndex]; // id of the dragged item
@@ -150,6 +150,9 @@ export function ImageQueue({
             {hasRename && <span className="gallery-final-name" title={finalName}>→ {finalName}</span>}
           </div>
           <div className="gallery-card-actions" onClick={(e) => e.stopPropagation()}>
+            <button className="queue-action-btn" title="Duplicate" onClick={() => onDuplicate(img.id)}>
+              <Copy size={11} />
+            </button>
             {img.status === 'done' && (
               <button className="queue-action-btn" title="Re-edit" onClick={() => onReset(img.id)}>
                 <RotateCcw size={11} />
@@ -192,6 +195,9 @@ export function ImageQueue({
           </div>
         </div>
         <div className="queue-actions" onClick={(e) => e.stopPropagation()}>
+          <button className="queue-action-btn" title="Duplicate" onClick={() => onDuplicate(img.id)}>
+            <Copy size={13} />
+          </button>
           {img.status === 'done' && (
             <button className="queue-action-btn" title="Re-edit" onClick={() => onReset(img.id)}>
               <RotateCcw size={13} />

@@ -1,11 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
-import type { ImageItem, CropData, ImageStatus, RenameConfig, ResizeCompressConfig, EditorGlobals } from '../types';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import type {
+  ImageItem, CropData, ImageStatus, RenameConfig,
+  ResizeCompressConfig, EditorGlobals, PendingDelete,
+} from '../types';
 import { DEFAULT_RENAME_CONFIG, DEFAULT_RESIZE_CONFIG, DEFAULT_EDITOR_GLOBALS } from '../types';
 
-const STORAGE_KEY   = 'narayan_image_store';
-const RENAME_KEY    = 'narayan_rename_config';
-const GLOBALS_KEY   = 'narayan_editor_globals';
+const STORAGE_KEY        = 'narayan_image_store';
+const RENAME_KEY         = 'narayan_rename_config';
+const GLOBALS_KEY        = 'narayan_editor_globals';
 const MAX_STORAGE_IMAGES = 200;
+
+/** How long (ms) the undo banner stays visible before the delete is permanent. */
+export const UNDO_DELAY_MS = 5000;
 
 // ── persistence ─────────────────────────────────────────────────────
 
@@ -56,13 +62,21 @@ export interface UseImageStore {
   activeImage: ImageItem | null;
   renameConfig: RenameConfig;
   editorGlobals: EditorGlobals;
+  /** The most recently deleted item, while the undo window is open. null = no pending undo. */
+  pendingDelete: PendingDelete | null;
   addImages: (files: File[]) => Promise<void>;
+  /** Add pre-built ImageItems directly (used by PDF import). */
+  addImageItems: (items: ImageItem[]) => void;
   setActiveId: (id: string | null) => void;
   saveImage: (id: string, cropData: CropData, processedDataUrl: string) => void;
   goToNext: () => void;
   removeImage: (id: string) => void;
+  /** Restore the most recently deleted image to its original position. */
+  undoDelete: () => void;
   resetImage: (id: string) => void;
   reorderImages: (fromIndex: number, toIndex: number) => void;
+  /** Duplicate an image, inserting the copy immediately after the original. */
+  duplicateImage: (id: string) => void;
   setRenameConfig: (cfg: RenameConfig) => void;
   resetRenameConfig: () => void;
   setResizeConfig: (id: string, cfg: ResizeCompressConfig) => void;
@@ -92,10 +106,16 @@ export function useImageStore(): UseImageStore {
   const [renameConfig, setRenameConfigState]     = useState<RenameConfig>(() => loadRenameConfig());
   const [editorGlobals, setEditorGlobalsState]   = useState<EditorGlobals>(() => loadEditorGlobals());
 
+  // ── Undo-delete state (kept inside the store, not in App) ─────────
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
+  /** Ref to the auto-dismiss timer so we can cancel it on undo or on a new delete. */
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => { saveImages(images); },               [images]);
   useEffect(() => { saveRenameConfig(renameConfig); },   [renameConfig]);
   useEffect(() => { saveEditorGlobals(editorGlobals); }, [editorGlobals]);
 
+  // ── addImages ──────────────────────────────────────────────────────
   const addImages = useCallback(async (files: File[]) => {
     const sliced = files.slice(0, MAX_STORAGE_IMAGES);
     const newItems: ImageItem[] = await Promise.all(
@@ -118,6 +138,13 @@ export function useImageStore(): UseImageStore {
     setActiveIdState((prev) => prev ?? newItems[0]?.id ?? null);
   }, []);
 
+  // ── addImageItems (for PDF pages already converted to dataUrls) ────
+  const addImageItems = useCallback((items: ImageItem[]) => {
+    setImages((prev) => [...prev, ...items].slice(-MAX_STORAGE_IMAGES));
+    setActiveIdState((prev) => prev ?? items[0]?.id ?? null);
+  }, []);
+
+  // ── setActiveId ───────────────────────────────────────────────────
   const setActiveId = useCallback((id: string | null) => {
     setActiveIdState(id);
     if (id) {
@@ -129,6 +156,7 @@ export function useImageStore(): UseImageStore {
     }
   }, []);
 
+  // ── saveImage ─────────────────────────────────────────────────────
   const saveImage = useCallback(
     (id: string, cropData: CropData, processedDataUrl: string) => {
       setImages((prev) =>
@@ -141,6 +169,7 @@ export function useImageStore(): UseImageStore {
     }, []
   );
 
+  // ── goToNext ──────────────────────────────────────────────────────
   const goToNext = useCallback(() => {
     setImages((prev) => {
       const currentIndex = prev.findIndex((img) => img.id === activeId);
@@ -157,11 +186,63 @@ export function useImageStore(): UseImageStore {
     });
   }, [activeId]);
 
+  // ── removeImage (with undo support) ──────────────────────────────
   const removeImage = useCallback((id: string) => {
-    setImages((prev) => prev.filter((img) => img.id !== id));
+    // Cancel any previous undo timer — the previous pending delete is now permanent
+    if (undoTimerRef.current !== null) {
+      clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
+    }
+
+    setImages((prev) => {
+      const index = prev.findIndex((img) => img.id === id);
+      if (index === -1) return prev;
+
+      const image = prev[index];
+
+      // Record the deleted item so the user can undo
+      setPendingDelete({ image, index, startedAt: Date.now() });
+
+      // Auto-dismiss the undo banner after UNDO_DELAY_MS
+      undoTimerRef.current = setTimeout(() => {
+        setPendingDelete(null);
+        undoTimerRef.current = null;
+      }, UNDO_DELAY_MS);
+
+      return prev.filter((img) => img.id !== id);
+    });
+
+    // If we deleted the active image, clear activeId
     setActiveIdState((prev) => (prev === id ? null : prev));
   }, []);
 
+  // ── undoDelete ────────────────────────────────────────────────────
+  const undoDelete = useCallback(() => {
+    if (undoTimerRef.current !== null) {
+      clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
+    }
+
+    setPendingDelete((pd) => {
+      if (!pd) return null;
+      const { image, index } = pd;
+
+      setImages((prev) => {
+        const next = [...prev];
+        // Clamp index to valid range in case other operations changed the list
+        const clampedIndex = Math.min(index, next.length);
+        next.splice(clampedIndex, 0, image);
+        return next;
+      });
+
+      // Re-activate the restored image
+      setActiveIdState(image.id);
+
+      return null;
+    });
+  }, []);
+
+  // ── resetImage ────────────────────────────────────────────────────
   const resetImage = useCallback((id: string) => {
     setImages((prev) =>
       prev.map((img) =>
@@ -172,12 +253,49 @@ export function useImageStore(): UseImageStore {
     );
   }, []);
 
+  // ── reorderImages ─────────────────────────────────────────────────
   const reorderImages = useCallback((fromIndex: number, toIndex: number) => {
     if (fromIndex === toIndex) return;
     setImages((prev) => {
       const next = [...prev];
       const [moved] = next.splice(fromIndex, 1);
       next.splice(toIndex, 0, moved);
+      return next;
+    });
+  }, []);
+
+  // ── duplicateImage ────────────────────────────────────────────────
+  const duplicateImage = useCallback((id: string) => {
+    setImages((prev) => {
+      const index = prev.findIndex((img) => img.id === id);
+      if (index === -1) return prev;
+
+      const original = prev[index];
+      const duplicate: ImageItem = {
+        // Deep-copy all fields so editing the duplicate never mutates the original
+        ...original,
+        // New unique identity
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        // Append "(copy)" so the duplicate is visually distinguishable in the queue
+        name: (() => {
+          const dot = original.name.lastIndexOf('.');
+          const stem = dot !== -1 ? original.name.slice(0, dot) : original.name;
+          const ext  = dot !== -1 ? original.name.slice(dot)    : '';
+          return `${stem} (copy)${ext}`;
+        })(),
+        // New timestamp so it doesn't collide
+        addedAt: Date.now(),
+        // Copies the full processed state but keeps it independent
+        cropData:         original.cropData   ? { ...original.cropData }   : null,
+        resizeConfig:     { ...original.resizeConfig },
+        processedDataUrl: original.processedDataUrl,
+        status:           original.status,
+        doneAt:           original.doneAt,
+      };
+
+      const next = [...prev];
+      // Insert immediately after the original
+      next.splice(index + 1, 0, duplicate);
       return next;
     });
   }, []);
@@ -194,6 +312,12 @@ export function useImageStore(): UseImageStore {
   }, []);
 
   const clearAll = useCallback(() => {
+    // Also clear any pending undo on clear-all
+    if (undoTimerRef.current !== null) {
+      clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
+    }
+    setPendingDelete(null);
     setImages([]);
     setActiveIdState(null);
     localStorage.removeItem(STORAGE_KEY);
@@ -205,8 +329,9 @@ export function useImageStore(): UseImageStore {
 
   return {
     images, activeId, activeImage, renameConfig, editorGlobals,
-    addImages, setActiveId, saveImage, goToNext,
-    removeImage, resetImage, reorderImages,
+    pendingDelete,
+    addImages, addImageItems, setActiveId, saveImage, goToNext,
+    removeImage, undoDelete, resetImage, reorderImages, duplicateImage,
     setRenameConfig, resetRenameConfig, setResizeConfig,
     setEditorGlobals, clearAll, doneCount, pendingCount,
   };

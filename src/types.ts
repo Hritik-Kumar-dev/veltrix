@@ -97,3 +97,16 @@ export interface ImageStore {
   renameConfig: RenameConfig;
   editorGlobals: EditorGlobals;
 }
+
+/**
+ * Represents the most-recently deleted image, held temporarily so the user
+ * can undo the deletion and restore it to its original position.
+ */
+export interface PendingDelete {
+  /** The full ImageItem that was removed. */
+  image: ImageItem;
+  /** The 0-based index it occupied before deletion, so undo can splice it back. */
+  index: number;
+  /** Timestamp when the delete was triggered (drives the countdown ring). */
+  startedAt: number;
+}

@@ -1530,9 +1530,9 @@ img {
   overflow-x: hidden;
   padding: 20px;
   display: grid;
-  /* Responsive columns: min 180px, fills available space */
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 16px;
+  /* Larger minimum so cards are bigger; fills available space */
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
   align-content: start;
   scrollbar-width: thin;
   scrollbar-color: var(--border-light) transparent;
@@ -1604,7 +1604,8 @@ img {
 .rp-card-thumb-wrap {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 3;
+  /* Bigger aspect ratio for larger previews (taller cards) */
+  aspect-ratio: 3 / 4;
   overflow: hidden;
   background: var(--bg-base);
   flex-shrink: 0;
@@ -1613,13 +1614,14 @@ img {
 .rp-card-thumb {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  /* Use contain to show full image without cropping, preserving aspect ratio */
+  object-fit: contain;
   display: block;
-  transition: transform 200ms ease;
+  /* Remove scale transform so the whole image stays visible on hover */
 }
 
 .rp-card:hover .rp-card-thumb {
-  transform: scale(1.03);
+  /* No scale transform — keep the whole image visible */
 }
 
 /* Name block */
@@ -1962,8 +1964,8 @@ img {
 
 @media (max-width: 1100px) {
   .rp-gallery-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
     padding: 14px;
   }
   .rp-controls {
@@ -2113,4 +2115,88 @@ img {
   .kbd-hints {
     display: none;
   }
+}
+
+/* =============================================
+   Undo-delete banner (floating overlay)
+   ============================================= */
+
+.undo-banner {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+  font-size: 13px;
+  color: var(--text-primary);
+  min-width: 280px;
+  max-width: calc(100vw - 48px);
+  white-space: nowrap;
+  animation: undo-banner-in 200ms ease;
+}
+
+@keyframes undo-banner-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.undo-ring {
+  flex-shrink: 0;
+}
+
+.undo-trash-icon {
+  color: var(--red);
+  flex-shrink: 0;
+}
+
+.undo-message {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-secondary);
+}
+
+.undo-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.undo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+  transition: background var(--trans);
+}
+
+.undo-btn:hover {
+  background: var(--accent-hover);
+}
+
+/* =============================================
+   Spin animation (used by import loader)
+   ============================================= */
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
 }
