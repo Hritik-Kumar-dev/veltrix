@@ -21,9 +21,13 @@ import { Plus, Printer, FileText, Trash2 } from 'lucide-react';
 interface Props {
   /** Gallery images from useImageStore — read-only reference */
   galleryImages: ImageItem[];
+  /** Shared import callback — feeds new files into the central ImageItem list */
+  onImport: (files: File[]) => Promise<void>;
+  /** Import pre-built ImageItems (e.g. PDF pages) into the central list */
+  onImportItems: (items: ImageItem[]) => void;
 }
 
-export function PrintStudio({ galleryImages }: Props) {
+export function PrintStudio({ galleryImages, onImport, onImportItems }: Props) {
   const {
     state,
     activeDoc,
@@ -148,6 +152,8 @@ export function PrintStudio({ galleryImages }: Props) {
           <ImageTray
             images={galleryImages}
             onAddImage={handleAddImage}
+            onImport={onImport}
+            onImportItems={onImportItems}
           />
         </aside>
 

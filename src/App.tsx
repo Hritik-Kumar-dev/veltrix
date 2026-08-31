@@ -134,7 +134,11 @@ function App() {
       {/* Print Studio — full-screen view, outside the editor layout */}
       {view === 'print' && (
         <div className="ps-view">
-          <PrintStudio galleryImages={images} />
+          <PrintStudio
+            galleryImages={images}
+            onImport={addImages}
+            onImportItems={addImageItems}
+          />
         </div>
       )}
     </div>

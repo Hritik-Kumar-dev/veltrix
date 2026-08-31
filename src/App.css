@@ -2551,6 +2551,19 @@ img {
 
 /* ── Image Tray ───────────────────────────────── */
 
+.ps-tray-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.ps-tray-import-btn {
+  padding: 3px 8px !important;
+  font-size: 11px !important;
+  gap: 4px !important;
+}
+
 .ps-tray-empty {
   font-size: 11px;
   color: var(--text-muted);
