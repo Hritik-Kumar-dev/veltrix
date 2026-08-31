@@ -1,12 +1,12 @@
 import { useRef, useState } from 'react';
-import { FolderOpen, Download, DownloadCloud, Trash2, Image, Tag, ArrowLeft, Loader2 } from 'lucide-react';
+import { FolderOpen, Download, DownloadCloud, Trash2, Image, Tag, ArrowLeft, Loader2, Printer } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import toast from 'react-hot-toast';
 import type { ImageItem } from '../types';
 import { pdfToImageItems } from '../pdfUtils';
 
-type AppView = 'editor' | 'rename';
+type AppView = 'editor' | 'rename' | 'print';
 
 interface Props {
   images: ImageItem[];
@@ -16,6 +16,7 @@ interface Props {
   onClearAll: () => void;
   onNavigateRename: () => void;
   onNavigateEditor: () => void;
+  onNavigatePrint: () => void;
   view: AppView;
   doneCount: number;
   getFinalName: (img: ImageItem, index: number) => string;
@@ -39,6 +40,7 @@ export function Toolbar({
   onClearAll,
   onNavigateRename,
   onNavigateEditor,
+  onNavigatePrint,
   view,
   doneCount,
   getFinalName,
@@ -138,6 +140,12 @@ export function Toolbar({
         </button>
       )}
 
+      {view === 'print' && (
+        <button className="toolbar-btn toolbar-back-btn" onClick={onNavigateEditor}>
+          <ArrowLeft size={16} /> Back to Editor
+        </button>
+      )}
+
       <div className="toolbar-actions">
         {view === 'editor' && (
           <button
@@ -158,47 +166,65 @@ export function Toolbar({
           <button className="toolbar-btn" onClick={onNavigateRename} title="Open bulk rename workspace">
             <Tag size={16} /> Rename
           </button>
-        ) : (
+        ) : view === 'rename' ? (
           <span className="toolbar-view-indicator"><Tag size={14} /> Bulk Rename</span>
+        ) : null}
+
+        {view === 'editor' && (
+          <button
+            className="toolbar-btn"
+            onClick={onNavigatePrint}
+            title="Open Print Studio"
+          >
+            <Printer size={16} /> Print Studio
+          </button>
+        )}
+
+        {view === 'print' && (
+          <span className="toolbar-view-indicator"><Printer size={14} /> Print Studio</span>
         )}
 
         <div className="toolbar-divider" />
 
-        {/* ZIP filename input */}
-        <div className="zip-name-field" title="Name for the exported ZIP file">
-          <input
-            type="text"
-            className="zip-name-input"
-            value={zipFilename}
-            onChange={(e) => onZipFilenameChange(e.target.value)}
-            placeholder="export_name"
-            spellCheck={false}
-            aria-label="ZIP export filename"
-          />
-          <span className="zip-name-ext">.zip</span>
-        </div>
+        {/* ZIP filename input — only in editor/rename views */}
+        {view !== 'print' && (
+          <>
+            <div className="zip-name-field" title="Name for the exported ZIP file">
+              <input
+                type="text"
+                className="zip-name-input"
+                value={zipFilename}
+                onChange={(e) => onZipFilenameChange(e.target.value)}
+                placeholder="export_name"
+                spellCheck={false}
+                aria-label="ZIP export filename"
+              />
+              <span className="zip-name-ext">.zip</span>
+            </div>
 
-        <button
-          className="toolbar-btn"
-          onClick={handleExportZip}
-          disabled={images.length === 0}
-          title="Export all images as ZIP"
-        >
-          <DownloadCloud size={16} />
-          Export ZIP
-          {doneCount > 0 && <span className="toolbar-badge">{doneCount}</span>}
-        </button>
+            <button
+              className="toolbar-btn"
+              onClick={handleExportZip}
+              disabled={images.length === 0}
+              title="Export all images as ZIP"
+            >
+              <DownloadCloud size={16} />
+              Export ZIP
+              {doneCount > 0 && <span className="toolbar-badge">{doneCount}</span>}
+            </button>
 
-        <button
-          className="toolbar-btn"
-          onClick={handleDownloadAll}
-          disabled={images.length === 0}
-          title="Download each image individually"
-        >
-          <Download size={16} /> Download All
-        </button>
+            <button
+              className="toolbar-btn"
+              onClick={handleDownloadAll}
+              disabled={images.length === 0}
+              title="Download each image individually"
+            >
+              <Download size={16} /> Download All
+            </button>
 
-        <div className="toolbar-divider" />
+            <div className="toolbar-divider" />
+          </>
+        )}
 
         <button
           className="toolbar-btn danger"

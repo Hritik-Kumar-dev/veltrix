@@ -15,6 +15,7 @@
     "file-saver": "^2.0.5",
     "jszip": "^3.10.1",
     "lucide-react": "^0.511.0",
+    "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^4.9.155",
     "react": "^19.2.8",
     "react-cropper": "^2.3.3",

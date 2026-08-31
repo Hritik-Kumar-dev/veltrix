@@ -7,11 +7,12 @@ import { ImageEditor }       from './components/ImageEditor';
 import { EmptyState }        from './components/EmptyState';
 import { RenamePage }        from './components/RenamePage';
 import { UndoDeleteBanner }  from './components/UndoDeleteBanner';
+import { PrintStudio }       from './printStudio/PrintStudio';
 import { generateFinalName } from './renameUtils';
 import type { CropData, ImageItem } from './types';
 import './App.css';
 
-type AppView = 'editor' | 'rename';
+type AppView = 'editor' | 'rename' | 'print';
 
 function App() {
   const {
@@ -65,6 +66,7 @@ function App() {
         onClearAll={clearAll}
         onNavigateRename={() => setView('rename')}
         onNavigateEditor={() => setView('editor')}
+        onNavigatePrint={() => setView('print')}
         view={view}
         doneCount={doneCount}
         getFinalName={getFinalName}
@@ -127,6 +129,13 @@ function App() {
           pendingDelete={pendingDelete}
           onUndo={undoDelete}
         />
+      )}
+
+      {/* Print Studio — full-screen view, outside the editor layout */}
+      {view === 'print' && (
+        <div className="ps-view">
+          <PrintStudio galleryImages={images} />
+        </div>
       )}
     </div>
   );

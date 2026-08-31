@@ -2200,3 +2200,753 @@ img {
 .spin {
   animation: spin 1s linear infinite;
 }
+
+
+/* =============================================
+   Print Studio — ps-* namespace
+   ============================================= */
+
+/* ── App shell ────────────────────────────────── */
+
+/* The print view fills the remaining viewport below the toolbar */
+.ps-view {
+  position: fixed;
+  inset: var(--toolbar-h) 0 0 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base);
+  z-index: 5;
+  overflow: hidden;
+}
+
+/* ── Root layout ──────────────────────────────── */
+
+.ps-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-base);
+}
+
+/* ── Top bar (document tabs) ──────────────────── */
+
+.ps-topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.ps-doc-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ps-doc-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  max-width: 160px;
+}
+
+.ps-doc-tab:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.ps-doc-tab.active {
+  background: var(--bg-active);
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+}
+
+.ps-doc-tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ps-doc-tab--new {
+  background: transparent;
+  color: var(--text-muted);
+  padding: 4px 8px;
+}
+
+.ps-doc-tab--new:hover {
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+
+.ps-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.ps-doc-name-input {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 8px;
+  width: 180px;
+  outline: none;
+}
+
+.ps-doc-name-input:focus {
+  border-color: var(--accent);
+}
+
+/* ── Workspace ────────────────────────────────── */
+
+.ps-workspace {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Sidebars ─────────────────────────────────── */
+
+.ps-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-light) transparent;
+  gap: 0;
+}
+
+.ps-sidebar--right {
+  border-right: none;
+  border-left: 1px solid var(--border);
+  width: 0;
+  overflow: hidden;
+  transition: width 200ms ease;
+}
+
+.ps-sidebar--right.visible {
+  width: 220px;
+}
+
+/* ── Panels ───────────────────────────────────── */
+
+.ps-panel {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ps-panel--element {
+  /* no extra styles needed */
+}
+
+.ps-panel-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+/* ── Form fields ──────────────────────────────── */
+
+.ps-field {
+  margin-bottom: 8px;
+}
+
+.ps-field:last-child {
+  margin-bottom: 0;
+}
+
+.ps-field--row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ps-field-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.ps-field-row:last-child {
+  margin-bottom: 0;
+}
+
+.ps-field-row--actions {
+  gap: 4px;
+}
+
+.ps-label {
+  display: block;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+  font-weight: 500;
+}
+
+.ps-select {
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 4px 6px;
+  outline: none;
+  cursor: pointer;
+}
+
+.ps-select:focus {
+  border-color: var(--accent);
+}
+
+.ps-select--sm {
+  width: auto;
+  min-width: 64px;
+}
+
+.ps-input {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 4px 6px;
+  outline: none;
+  width: 100%;
+}
+
+.ps-input:focus {
+  border-color: var(--accent);
+}
+
+.ps-input--num {
+  width: 70px;
+  flex-shrink: 0;
+}
+
+.ps-num-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 70px;
+}
+
+/* ── Orientation toggle ───────────────────────── */
+
+.ps-orient-group {
+  display: flex;
+  gap: 4px;
+}
+
+.ps-orient-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  flex: 1;
+  justify-content: center;
+}
+
+.ps-orient-btn:hover {
+  border-color: var(--border-light);
+  color: var(--text-primary);
+}
+
+.ps-orient-btn.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Unit selector ────────────────────────────── */
+
+.ps-unit-group {
+  display: flex;
+  gap: 3px;
+}
+
+.ps-unit-btn {
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.ps-unit-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-light);
+}
+
+.ps-unit-btn.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Dimension info text ──────────────────────── */
+
+.ps-dims-info {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+/* ── Custom size inputs ───────────────────────── */
+
+.ps-dim-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.ps-dim-sep {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 16px;
+}
+
+/* ── Image Tray ───────────────────────────────── */
+
+.ps-tray-empty {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.ps-tray-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.ps-tray-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: grab;
+  position: relative;
+}
+
+.ps-tray-item:active {
+  cursor: grabbing;
+}
+
+.ps-tray-thumb {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+}
+
+.ps-tray-thumb:hover .ps-tray-add-overlay {
+  opacity: 1;
+}
+
+.ps-tray-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ps-tray-add-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(124, 106, 247, 0.55);
+  color: #fff;
+  opacity: 0;
+  transition: opacity var(--trans);
+  font-size: 20px;
+}
+
+.ps-tray-name {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.ps-tray-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  background: var(--green);
+  color: #000;
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 700;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Canvas area ──────────────────────────────── */
+
+.ps-canvas-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-base);
+}
+
+.ps-canvas-scroll {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 32px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-light) transparent;
+}
+
+.ps-canvas-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: max-content;
+  min-height: max-content;
+}
+
+/* The white page */
+.ps-page {
+  position: relative;
+  background: #ffffff;
+  box-shadow: 0 4px 40px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  cursor: default;
+  flex-shrink: 0;
+}
+
+.ps-page--dragover {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+}
+
+/* Margin guide lines */
+.ps-margins {
+  border: 1px dashed rgba(100, 100, 200, 0.25);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Canvas elements ──────────────────────────── */
+
+.ps-element {
+  /* position, left, top, width, height, transform set inline */
+}
+
+.ps-element--selected {
+  /* handles added by children */
+}
+
+.ps-element-border {
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--accent);
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+/* ── Resize handles ───────────────────────────── */
+
+.ps-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border: 2px solid var(--accent);
+  border-radius: 2px;
+  z-index: 100;
+}
+
+.ps-handle--nw { top: -5px;  left: -5px;   cursor: nw-resize; }
+.ps-handle--n  { top: -5px;  left: 50%; transform: translateX(-50%); cursor: n-resize; }
+.ps-handle--ne { top: -5px;  right: -5px;  cursor: ne-resize; }
+.ps-handle--e  { top: 50%; transform: translateY(-50%); right: -5px;  cursor: e-resize; }
+.ps-handle--se { bottom: -5px; right: -5px;  cursor: se-resize; }
+.ps-handle--s  { bottom: -5px; left: 50%; transform: translateX(-50%); cursor: s-resize; }
+.ps-handle--sw { bottom: -5px; left: -5px;   cursor: sw-resize; }
+.ps-handle--w  { top: 50%; transform: translateY(-50%); left: -5px;   cursor: w-resize; }
+
+/* Rotate handle — above center top */
+.ps-handle--rotate {
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent);
+  border-color: #fff;
+  border-radius: 50%;
+  cursor: grab;
+  width: 12px;
+  height: 12px;
+}
+
+.ps-handle--rotate:active {
+  cursor: grabbing;
+}
+
+/* Connector line between rotate handle and element */
+.ps-handle--rotate::after {
+  content: '';
+  position: absolute;
+  bottom: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1px;
+  height: 18px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+/* ── Bottom bar ───────────────────────────────── */
+
+.ps-bottom-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* ── Zoom controls ────────────────────────────── */
+
+.ps-zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ps-zoom-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  background: transparent;
+}
+
+.ps-zoom-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.ps-zoom-select {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 11px;
+  padding: 2px 4px;
+  outline: none;
+  cursor: pointer;
+}
+
+.ps-zoom-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  min-width: 36px;
+}
+
+/* ── Export bar ───────────────────────────────── */
+
+.ps-export-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ps-dpi-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Selected element icon buttons ───────────── */
+
+.ps-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 7px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.ps-icon-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-light);
+}
+
+.ps-icon-btn.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.ps-icon-btn.danger:hover {
+  background: var(--red-dim);
+  border-color: var(--red);
+  color: var(--red);
+}
+
+/* ── Print Preview overlay ────────────────────── */
+
+.ps-preview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 24px;
+}
+
+.ps-preview-modal {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+.ps-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.ps-preview-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ps-preview-scroll {
+  overflow: auto;
+  padding: 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  flex: 1;
+}
+
+.ps-preview-footer {
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* ── Empty state ──────────────────────────────── */
+
+.ps-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+  color: var(--text-secondary);
+}
+
+.ps-empty-icon {
+  color: var(--text-muted);
+  opacity: 0.4;
+}
+
+.ps-empty-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.ps-empty-sub {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+/* ── Toolbar view indicator ───────────────────── */
+
+.toolbar-view-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
