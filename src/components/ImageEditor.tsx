@@ -3,9 +3,10 @@ import Cropper from 'react-cropper';
 import type { ReactCropperElement } from 'react-cropper';
 import {
   RotateCcw, RotateCw, Save, SkipForward, ZoomIn, ZoomOut,
-  ChevronDown, ChevronUp, Crop, PenTool,
+  ChevronDown, ChevronUp, Crop, PenTool, Scan, Loader2, X,
 } from 'lucide-react';
 import 'cropperjs/dist/cropper.css';
+import toast from 'react-hot-toast';
 import type { ImageItem, CropData, ResizeCompressConfig, EditorGlobals } from '../types';
 import { DEFAULT_RESIZE_CONFIG } from '../types';
 import { AspectRatioSelector } from './AspectRatioSelector';
@@ -13,6 +14,10 @@ import { ResizeCompressPanel } from './ResizeCompressPanel';
 import { PerspectiveCropOverlay } from './PerspectiveCropOverlay';
 import type { PerspectiveCropHandle } from './PerspectiveCropOverlay';
 import { resizeAndCompress, estimateSizeLabel } from '../resizeCompress';
+import { detectFaces } from '../autoCrop/detectFaces';
+import { estimatePhotoRegion } from '../autoCrop/estimatePhotoRegion';
+import type { CropRegion } from '../autoCrop/estimatePhotoRegion';
+import type { FaceBox } from '../autoCrop/detectFaces';
 
 type CropMode = 'standard' | 'perspective';
 
@@ -32,6 +37,19 @@ interface Props {
   onPreviewChange?: (dataUrl: string | null) => void;
 }
 
+// ── Auto Crop state ───────────────────────────────────────────────────────────
+
+interface AutoCropCandidate {
+  faceBox:  FaceBox;
+  region:   CropRegion;
+}
+
+type AutoCropStatus =
+  | { kind: 'idle' }
+  | { kind: 'running' }
+  | { kind: 'no-face' }
+  | { kind: 'candidates'; list: AutoCropCandidate[] };
+
 export function ImageEditor({
   image,
   hasNext,
@@ -48,8 +66,6 @@ export function ImageEditor({
 
   const [cropMode, setCropMode]     = useState<CropMode>('standard');
   const [rotation, setRotation]     = useState(image.cropData?.rotate ?? 0);
-  // Mirror of rotation state readable from debounced/async callbacks without
-  // stale-closure problems.
   const rotationRef = useRef<number>(image.cropData?.rotate ?? 0);
   const [isSaving, setIsSaving]     = useState(false);
   const [resizePanelOpen, setResizePanelOpen] = useState(false);
@@ -59,20 +75,18 @@ export function ImageEditor({
   const [estimatedSize, setEstimatedSize] = useState('');
   const [originalRatio, setOriginalRatio] = useState(1);
 
+  // ── Auto Crop state ───────────────────────────────────────────────
+  const [autoCropStatus, setAutoCropStatus] = useState<AutoCropStatus>({ kind: 'idle' });
+
   // ── Debounced preview generation ─────────────────────────────────
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Clear the debounce timer when the editor unmounts (image switch)
   useEffect(() => {
     return () => {
       if (previewTimerRef.current !== null) clearTimeout(previewTimerRef.current);
     };
   }, []);
 
-  // ── Rotate a canvas by degrees (clockwise) ───────────────────────
-  // Mirrors the rotation convention used by CropperJS.
-  // Returns a new canvas sized to contain the full rotated image.
-  // Declared before schedulePreview so the latter can reference it.
   const rotateCanvas = useCallback((src: HTMLCanvasElement, degrees: number): HTMLCanvasElement => {
     const rad  = (degrees * Math.PI) / 180;
     const sin  = Math.abs(Math.sin(rad));
@@ -89,11 +103,6 @@ export function ImageEditor({
     return out;
   }, []);
 
-  /**
-   * Generate a small thumbnail from the current editing state and call
-   * onPreviewChange.  Uses a 150 ms debounce so handle-drags or slider
-   * moves don't produce a thumbnail on every frame.
-   */
   const schedulePreview = useCallback(() => {
     if (!onPreviewChange) return;
     if (previewTimerRef.current !== null) clearTimeout(previewTimerRef.current);
@@ -105,7 +114,6 @@ export function ImageEditor({
         if (cropMode === 'perspective') {
           const pc = perspRef.current?.getCroppedCanvas() ?? null;
           if (pc) {
-            // Apply rotation to the perspective crop result, matching the save path.
             sourceCanvas = rotationRef.current !== 0 ? rotateCanvas(pc, rotationRef.current) : pc;
           }
         } else {
@@ -115,12 +123,8 @@ export function ImageEditor({
           }
         }
 
-        if (!sourceCanvas) {
-          onPreviewChange(null);
-          return;
-        }
+        if (!sourceCanvas) { onPreviewChange(null); return; }
 
-        // Scale down to PREVIEW_MAX_PX on the longer side
         const scale = Math.min(1, PREVIEW_MAX_PX / Math.max(sourceCanvas.width, sourceCanvas.height));
         const tw = Math.max(1, Math.round(sourceCanvas.width  * scale));
         const th = Math.max(1, Math.round(sourceCanvas.height * scale));
@@ -140,34 +144,28 @@ export function ImageEditor({
     const r = image.cropData?.rotate ?? 0;
     rotationRef.current = r;
     setRotation(r);
-    // Apply locked resize config if set
     const effectiveResize = editorGlobals.lockedResizeConfig ?? image.resizeConfig ?? DEFAULT_RESIZE_CONFIG;
     setResizeConfigState(effectiveResize);
     setEstimatedSize('');
     setCropMode('standard');
-    // Reset preview to the processed or original data URL immediately on switch
+    setAutoCropStatus({ kind: 'idle' });
     if (onPreviewChange) {
       onPreviewChange(image.processedDataUrl ?? image.originalDataUrl);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [image.id]);
 
-  // ── Derived: forced ratio for AspectRatioSelector ─────────────────
   const forcedRatio = editorGlobals.lockedAspectRatio !== null
     ? editorGlobals.lockedAspectRatio
     : undefined;
 
-  // ── Resize config changes ─────────────────────────────────────────
   const handleResizeConfigChange = useCallback((cfg: ResizeCompressConfig) => {
     setResizeConfigState(cfg);
     onResizeConfigChange(image.id, cfg);
     setEstimatedSize('');
   }, [image.id, onResizeConfigChange]);
 
-  // ── Rotation helpers ──────────────────────────────────────────────
   const applyRotation = useCallback((deg: number) => {
-    // In standard mode, drive CropperJS; in perspective mode the rotation
-    // is stored in state and applied at export time (see getCroppedDataUrl).
     if (cropperRef.current?.cropper) {
       cropperRef.current.cropper.rotateTo(deg);
     }
@@ -187,12 +185,88 @@ export function ImageEditor({
   const handleZoomOut     = () => { cropperRef.current?.cropper.zoom(-0.1); schedulePreview(); };
   const handleResetCrop   = () => { cropperRef.current?.cropper.reset(); rotationRef.current = 0; setRotation(0); schedulePreview(); };
 
-  // ── Aspect ratio change ───────────────────────────────────────────
   const handleRatioChange = useCallback((ratio: number | null) => {
     const cropper = cropperRef.current?.cropper;
     if (!cropper) return;
     cropper.setAspectRatio(ratio === null ? NaN : ratio);
   }, []);
+
+  // ── Auto Crop ─────────────────────────────────────────────────────
+  //
+  // Coordinate mapping: CropperJS crop-box coords live in the "canvas"
+  // coordinate space (the rendered, scaled image within the cropper widget).
+  //
+  //   imageData    = cropper.getImageData()   — has naturalWidth/Height and displayed width/height
+  //   canvasData   = cropper.getCanvasData()  — left/top offset of rendered canvas in container
+  //
+  //   displayScale = canvasData.width / imageData.naturalWidth
+  //   cropBoxLeft  = canvasData.left + origPx.x * displayScale
+  //   cropBoxTop   = canvasData.top  + origPx.y * displayScale
+  //   cropBoxWidth = origPx.width  * displayScale
+  //   cropBoxHeight= origPx.height * displayScale
+
+  const applyCropRegion = useCallback((region: CropRegion) => {
+    const cropper = cropperRef.current?.cropper;
+    if (!cropper) return;
+
+    const imageData  = cropper.getImageData();
+    const canvasData = cropper.getCanvasData();
+    const scale = canvasData.width / imageData.naturalWidth;
+
+    cropper.setCropBoxData({
+      left:   canvasData.left + region.x      * scale,
+      top:    canvasData.top  + region.y      * scale,
+      width:  region.width  * scale,
+      height: region.height * scale,
+    });
+    schedulePreview();
+  }, [schedulePreview]);
+
+  const handleAutoCrop = useCallback(async () => {
+    setAutoCropStatus({ kind: 'running' });
+
+    const faces = await detectFaces(image.originalDataUrl);
+
+    if (faces.length === 0) {
+      setAutoCropStatus({ kind: 'no-face' });
+      return;
+    }
+
+    // Resolve image dimensions from the data URL
+    const imgEl = await new Promise<HTMLImageElement>((res) => {
+      const i = new Image();
+      i.onload = () => res(i);
+      i.src = image.originalDataUrl;
+    });
+    const origW = imgEl.naturalWidth;
+    const origH = imgEl.naturalHeight;
+
+    const candidates: AutoCropCandidate[] = faces.map((faceBox) => ({
+      faceBox,
+      region: estimatePhotoRegion(faceBox, origW, origH),
+    }));
+
+    if (candidates.length === 1) {
+      // Single face — apply immediately without picker
+      setCropMode('standard');
+      // Give CropperJS a tick to show (it may be hidden)
+      setTimeout(() => {
+        applyCropRegion(candidates[0].region);
+        setAutoCropStatus({ kind: 'idle' });
+      }, 80);
+    } else {
+      // Multiple faces — show picker
+      setAutoCropStatus({ kind: 'candidates', list: candidates });
+    }
+  }, [image.originalDataUrl, applyCropRegion]);
+
+  const handlePickCandidate = useCallback((candidate: AutoCropCandidate) => {
+    setCropMode('standard');
+    setTimeout(() => {
+      applyCropRegion(candidate.region);
+      setAutoCropStatus({ kind: 'idle' });
+    }, 80);
+  }, [applyCropRegion]);
 
   // ── Core pipeline ─────────────────────────────────────────────────
   const getCroppedDataUrl = useCallback((): string | null => {
@@ -200,16 +274,12 @@ export function ImageEditor({
       let sourceCanvas: HTMLCanvasElement;
 
       if (cropMode === 'perspective') {
-        // getCroppedCanvas() returns the perspective warp of the ORIGINAL
-        // (unrotated) image.  We then apply the current rotation so the
-        // final result matches what the user sees in the preview.
         const pc = perspRef.current?.getCroppedCanvas();
         if (!pc) return null;
         sourceCanvas = rotation !== 0 ? rotateCanvas(pc, rotation) : pc;
       } else {
         const cropper = cropperRef.current?.cropper;
         if (!cropper) return null;
-        // CropperJS bakes rotation into getCroppedCanvas() internally.
         sourceCanvas = cropper.getCroppedCanvas({ maxWidth: 4096, maxHeight: 4096 });
       }
 
@@ -236,7 +306,6 @@ export function ImageEditor({
     };
   }, [rotation]);
 
-  // ── Save actions ──────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     const dataUrl = getCroppedDataUrl();
@@ -285,7 +354,6 @@ export function ImageEditor({
     if (imgData.naturalWidth && imgData.naturalHeight) {
       setOriginalRatio(imgData.naturalWidth / imgData.naturalHeight);
     }
-    // Apply locked aspect ratio if set
     if (editorGlobals.lockedAspectRatio !== null) {
       const r = editorGlobals.lockedAspectRatio;
       cropper.setAspectRatio(r === 'free' ? NaN : (r as number));
@@ -310,6 +378,17 @@ export function ImageEditor({
   const ratioLocked   = editorGlobals.lockedAspectRatio !== null;
   const resizeLocked  = editorGlobals.lockedResizeConfig !== null;
 
+  // ── Auto Crop "no face" toast (show once, then reset to idle) ─────
+  useEffect(() => {
+    if (autoCropStatus.kind === 'no-face') {
+      toast('No face detected — switch to manual crop', {
+        icon: '🔍',
+        duration: 3000,
+      });
+      setAutoCropStatus({ kind: 'idle' });
+    }
+  }, [autoCropStatus.kind]);
+
   return (
     <div className="editor-container">
       <div className="editor-header">
@@ -333,11 +412,63 @@ export function ImageEditor({
         >
           <PenTool size={15} /> Perspective
         </button>
+
+        {/* Auto Crop button — sits in the same bar, visually separated */}
+        <div className="crop-mode-sep" />
+        <button
+          className={`crop-mode-btn crop-mode-btn--auto${autoCropStatus.kind === 'running' ? ' running' : ''}`}
+          onClick={handleAutoCrop}
+          disabled={autoCropStatus.kind === 'running'}
+          title="Detect face and suggest a passport-style crop"
+        >
+          {autoCropStatus.kind === 'running'
+            ? <><Loader2 size={15} className="spin" /> Detecting…</>
+            : <><Scan size={15} /> Auto Crop</>
+          }
+        </button>
       </div>
+
+      {/* ── Candidate picker (shown when multiple faces detected) ── */}
+      {autoCropStatus.kind === 'candidates' && (
+        <div className="autocrop-picker">
+          <div className="autocrop-picker-header">
+            <span className="autocrop-picker-title">
+              {autoCropStatus.list.length} faces detected — pick a region:
+            </span>
+            <button
+              className="autocrop-picker-dismiss"
+              onClick={() => setAutoCropStatus({ kind: 'idle' })}
+              title="Dismiss"
+            >
+              <X size={13} />
+            </button>
+          </div>
+          <div className="autocrop-picker-list">
+            {autoCropStatus.list.map((candidate, i) => (
+              <button
+                key={i}
+                className="autocrop-candidate-btn"
+                onClick={() => handlePickCandidate(candidate)}
+                title={`Confidence: ${(candidate.faceBox.confidence * 100).toFixed(0)}%`}
+              >
+                <CandidateThumbnail
+                  dataUrl={image.originalDataUrl}
+                  region={candidate.region}
+                />
+                <span className="autocrop-candidate-label">
+                  Face {i + 1}
+                  <span className="autocrop-candidate-conf">
+                    {(candidate.faceBox.confidence * 100).toFixed(0)}%
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Canvas area ── */}
       <div className="editor-canvas-wrap">
-        {/* Standard CropperJS — hidden (not unmounted) when perspective active so state is preserved */}
         <div style={{ display: cropMode === 'standard' ? 'flex' : 'none', width: '100%', height: '100%' }}>
           <Cropper
             ref={cropperRef}
@@ -360,7 +491,6 @@ export function ImageEditor({
           />
         </div>
 
-        {/* Perspective overlay */}
         {cropMode === 'perspective' && (
           <PerspectiveCropOverlay
             ref={perspRef}
@@ -373,7 +503,6 @@ export function ImageEditor({
 
       {/* ── Controls ── */}
       <div className="editor-controls">
-        {/* Aspect ratio (standard mode only) */}
         {cropMode === 'standard' && (
           <div className="control-row control-row--aspect">
             <label className="control-label">Ratio</label>
@@ -389,7 +518,6 @@ export function ImageEditor({
           </div>
         )}
 
-        {/* Rotation */}
         <div className="control-row">
           <label className="control-label">Rotate</label>
           <div className="rotate-controls">
@@ -403,7 +531,6 @@ export function ImageEditor({
           </div>
         </div>
 
-        {/* Zoom / Reset (standard mode only) */}
         {cropMode === 'standard' && (
           <div className="control-row">
             <label className="control-label">Zoom</label>
@@ -417,7 +544,6 @@ export function ImageEditor({
           </div>
         )}
 
-        {/* Resize & Compress */}
         <div className="control-row">
           <button
             className={`resize-toggle-btn ${resizePanelOpen ? 'open' : ''} ${hasResizeActive ? 'has-active' : ''}`}
@@ -441,7 +567,6 @@ export function ImageEditor({
           />
         )}
 
-        {/* Actions */}
         <div className="editor-actions">
           <button className="action-btn primary" onClick={handleSave} disabled={isSaving} title="Save (Space)">
             <Save size={16} /> Save
@@ -458,7 +583,6 @@ export function ImageEditor({
           )}
         </div>
 
-        {/* Keyboard hints */}
         <div className="kbd-hints">
           <span className="kbd-hint"><kbd className="kbd">←</kbd><kbd className="kbd">→</kbd> Rotate 1°</span>
           <span className="kbd-hint"><kbd className="kbd">Ctrl</kbd><kbd className="kbd">←</kbd><kbd className="kbd">→</kbd> Rotate 90°</span>
@@ -467,4 +591,40 @@ export function ImageEditor({
       </div>
     </div>
   );
+}
+
+// ── CandidateThumbnail ────────────────────────────────────────────────────────
+// Renders a tiny cropped preview of a candidate region so the user can
+// visually identify which face is which before picking.
+
+interface ThumbProps {
+  dataUrl: string;
+  region: CropRegion;
+}
+
+function CandidateThumbnail({ dataUrl, region }: ThumbProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const img = new Image();
+    img.onload = () => {
+      const THUMB = 64;
+      const aspect = region.width / region.height;
+      const tw = aspect >= 1 ? THUMB : Math.round(THUMB * aspect);
+      const th = aspect < 1  ? THUMB : Math.round(THUMB / aspect);
+      canvas.width  = tw;
+      canvas.height = th;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(
+        img,
+        region.x, region.y, region.width, region.height,
+        0, 0, tw, th,
+      );
+    };
+    img.src = dataUrl;
+  }, [dataUrl, region]);
+
+  return <canvas ref={canvasRef} className="autocrop-thumb" />;
 }

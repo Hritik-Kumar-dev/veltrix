@@ -720,6 +720,112 @@ img {
   font-weight: 600;
 }
 
+/* Thin vertical divider between mode buttons and Auto Crop */
+.crop-mode-sep {
+  width: 1px;
+  background: var(--border);
+  margin: 2px 4px;
+  align-self: stretch;
+}
+
+/* Auto Crop button — accent-tinted variant */
+.crop-mode-btn--auto {
+  color: var(--text-secondary);
+  border-color: var(--border);
+  margin-left: 2px;
+}
+
+.crop-mode-btn--auto:hover:not(:disabled) {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.crop-mode-btn--auto.running {
+  opacity: 0.7;
+}
+
+/* ── Auto Crop candidate picker ──────────────────────────── */
+
+.autocrop-picker {
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 12px;
+  flex-shrink: 0;
+}
+
+.autocrop-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.autocrop-picker-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.autocrop-picker-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  background: transparent;
+}
+
+.autocrop-picker-dismiss:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.autocrop-picker-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.autocrop-candidate-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: border-color var(--trans), background var(--trans);
+}
+
+.autocrop-candidate-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.autocrop-thumb {
+  display: block;
+  border-radius: 2px;
+  /* canvas dimensions set by JS */
+}
+
+.autocrop-candidate-label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.autocrop-candidate-conf {
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
 /* Perspective canvas */
 .persp-canvas {
   touch-action: none;
