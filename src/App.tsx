@@ -50,6 +50,7 @@ function App() {
 
   return (
     <div className="app-root">
+      <Analytics />
       <Toaster
         position="top-right"
         toastOptions={{
