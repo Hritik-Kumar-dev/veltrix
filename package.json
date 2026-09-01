@@ -12,6 +12,7 @@
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.0.1",
     "@tailwindcss/vite": "^4.3.3",
+    "@vercel/analytics": "^2.0.1",
     "cropperjs": "^1.6.2",
     "file-saver": "^2.0.5",
     "jszip": "^3.10.1",
