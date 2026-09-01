@@ -72,6 +72,9 @@ export const DEFAULT_RENAME_CONFIG: RenameConfig = {
   padding: 3,
 };
 
+/** Which Auto Crop detection pipeline to use. */
+export type AutoCropMode = 'photo' | 'document';
+
 /**
  * Editor-wide settings that persist across images when locked.
  * Stored separately from per-image state so they survive image switches.
@@ -83,12 +86,26 @@ export interface EditorGlobals {
   lockedResizeConfig: ResizeCompressConfig | null;
   /** The filename for the exported ZIP (without extension). */
   zipFilename: string;
+  /**
+   * Which Auto Crop detection pipeline is active.
+   * 'photo'    = face-detect + passport-ratio expansion (existing behaviour).
+   * 'document' = edge/contour detection for the outer document boundary (new).
+   */
+  autoCropMode: AutoCropMode;
+  /**
+   * When true, the selected Auto Crop mode runs automatically the first time
+   * an image is selected (i.e. has no existing cropData yet).  The user still
+   * reviews and adjusts before saving — this never auto-saves.
+   */
+  autoApplyAutoCrop: boolean;
 }
 
 export const DEFAULT_EDITOR_GLOBALS: EditorGlobals = {
   lockedAspectRatio: null,
   lockedResizeConfig: null,
   zipFilename: 'batch_export',
+  autoCropMode: 'photo',
+  autoApplyAutoCrop: false,
 };
 
 export interface ImageStore {

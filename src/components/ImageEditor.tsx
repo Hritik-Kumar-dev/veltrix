@@ -4,6 +4,7 @@ import type { ReactCropperElement } from 'react-cropper';
 import {
   RotateCcw, RotateCw, Save, SkipForward, ZoomIn, ZoomOut,
   ChevronDown, ChevronUp, Crop, PenTool, Scan, Loader2, X,
+  Camera, FileText, ToggleLeft, ToggleRight,
 } from 'lucide-react';
 import 'cropperjs/dist/cropper.css';
 import toast from 'react-hot-toast';
@@ -18,6 +19,7 @@ import { detectFaces } from '../autoCrop/detectFaces';
 import { estimatePhotoRegion } from '../autoCrop/estimatePhotoRegion';
 import type { CropRegion } from '../autoCrop/estimatePhotoRegion';
 import type { FaceBox } from '../autoCrop/detectFaces';
+import { detectDocumentRegion } from '../autoCrop/detectDocumentRegion';
 
 type CropMode = 'standard' | 'perspective';
 
@@ -48,6 +50,7 @@ type AutoCropStatus =
   | { kind: 'idle' }
   | { kind: 'running' }
   | { kind: 'no-face' }
+  | { kind: 'no-document' }
   | { kind: 'candidates'; list: AutoCropCandidate[] };
 
 export function ImageEditor({
@@ -77,6 +80,24 @@ export function ImageEditor({
 
   // ── Auto Crop state ───────────────────────────────────────────────
   const [autoCropStatus, setAutoCropStatus] = useState<AutoCropStatus>({ kind: 'idle' });
+
+  // Refs that always hold the latest prop values so async callbacks and
+  // effects with narrow dep arrays can read them without going stale.
+  const autoApplyEnabledRef = useRef(editorGlobals.autoApplyAutoCrop);
+  const autoCropModeRef     = useRef(editorGlobals.autoCropMode);
+  const imageDataUrlRef     = useRef(image.originalDataUrl);
+  const imageCropDataRef    = useRef(image.cropData);
+
+  // Keep the refs in sync on every render (cheap, always correct).
+  autoApplyEnabledRef.current = editorGlobals.autoApplyAutoCrop;
+  autoCropModeRef.current     = editorGlobals.autoCropMode;
+  imageDataUrlRef.current     = image.originalDataUrl;
+  imageCropDataRef.current    = image.cropData;
+
+  // Track which image was last auto-applied so we never run twice on the
+  // same image ID within a session.  Reset to null on each new image so
+  // the guard is fresh and turning the toggle on mid-image works.
+  const autoAppliedForRef = useRef<string | null>(null);
 
   // ── Debounced preview generation ─────────────────────────────────
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -191,20 +212,7 @@ export function ImageEditor({
     cropper.setAspectRatio(ratio === null ? NaN : ratio);
   }, []);
 
-  // ── Auto Crop ─────────────────────────────────────────────────────
-  //
-  // Coordinate mapping: CropperJS crop-box coords live in the "canvas"
-  // coordinate space (the rendered, scaled image within the cropper widget).
-  //
-  //   imageData    = cropper.getImageData()   — has naturalWidth/Height and displayed width/height
-  //   canvasData   = cropper.getCanvasData()  — left/top offset of rendered canvas in container
-  //
-  //   displayScale = canvasData.width / imageData.naturalWidth
-  //   cropBoxLeft  = canvasData.left + origPx.x * displayScale
-  //   cropBoxTop   = canvasData.top  + origPx.y * displayScale
-  //   cropBoxWidth = origPx.width  * displayScale
-  //   cropBoxHeight= origPx.height * displayScale
-
+  // ── Photo Auto Crop — rectangular region → CropperJS ─────────────
   const applyCropRegion = useCallback((region: CropRegion) => {
     const cropper = cropperRef.current?.cropper;
     if (!cropper) return;
@@ -222,43 +230,96 @@ export function ImageEditor({
     schedulePreview();
   }, [schedulePreview]);
 
-  const handleAutoCrop = useCallback(async () => {
+  // ── Document Auto Crop — 4 corners → Perspective overlay ─────────
+  const applyDocumentCorners = useCallback((
+    corners: Awaited<ReturnType<typeof detectDocumentRegion>>,
+  ) => {
+    if (!corners) return;
+    // Switch to perspective mode, then inject corners after a tick so the
+    // overlay has mounted and imgRef/rotatedCanvasRef are populated.
+    setCropMode('perspective');
+    setTimeout(() => {
+      perspRef.current?.setCorners(corners);
+      schedulePreview();
+    }, 80);
+  }, [schedulePreview]);
+
+  // ── Unified Auto Crop dispatcher ──────────────────────────────────
+  /**
+   * Run whichever mode is currently selected.
+   * `silent` = true suppresses the "not detected" toast (used by auto-apply).
+   *
+   * Reads mode and dataUrl from refs so it is always current regardless of
+   * when (or which render) created this callback.
+   */
+  const runAutoCrop = useCallback(async (silent = false) => {
+    // Read fresh values from refs — never stale even in auto-apply effects
+    const mode    = autoCropModeRef.current;
+    const dataUrl = imageDataUrlRef.current;
+
+    console.log(`[AutoCrop] running mode="${mode}" silent=${silent} image="${dataUrl.slice(0, 40)}…"`);
+
     setAutoCropStatus({ kind: 'running' });
 
-    const faces = await detectFaces(image.originalDataUrl);
+    if (mode === 'photo') {
+      // ── Photo mode: face detection ─────────────────────────────
+      const faces = await detectFaces(dataUrl);
 
-    if (faces.length === 0) {
-      setAutoCropStatus({ kind: 'no-face' });
-      return;
-    }
+      if (faces.length === 0) {
+        if (silent) {
+          setAutoCropStatus({ kind: 'idle' });
+        } else {
+          setAutoCropStatus({ kind: 'no-face' });
+        }
+        return;
+      }
 
-    // Resolve image dimensions from the data URL
-    const imgEl = await new Promise<HTMLImageElement>((res) => {
-      const i = new Image();
-      i.onload = () => res(i);
-      i.src = image.originalDataUrl;
-    });
-    const origW = imgEl.naturalWidth;
-    const origH = imgEl.naturalHeight;
+      const imgEl = await new Promise<HTMLImageElement>((res) => {
+        const i = new Image();
+        i.onload = () => res(i);
+        i.src = dataUrl;
+      });
 
-    const candidates: AutoCropCandidate[] = faces.map((faceBox) => ({
-      faceBox,
-      region: estimatePhotoRegion(faceBox, origW, origH),
-    }));
+      const candidates: AutoCropCandidate[] = faces.map((faceBox) => ({
+        faceBox,
+        region: estimatePhotoRegion(faceBox, imgEl.naturalWidth, imgEl.naturalHeight),
+      }));
 
-    if (candidates.length === 1) {
-      // Single face — apply immediately without picker
-      setCropMode('standard');
-      // Give CropperJS a tick to show (it may be hidden)
-      setTimeout(() => {
-        applyCropRegion(candidates[0].region);
-        setAutoCropStatus({ kind: 'idle' });
-      }, 80);
+      if (candidates.length === 1) {
+        setCropMode('standard');
+        setTimeout(() => {
+          applyCropRegion(candidates[0].region);
+          setAutoCropStatus({ kind: 'idle' });
+        }, 80);
+      } else {
+        // Multiple faces — always show picker regardless of silent flag
+        setAutoCropStatus({ kind: 'candidates', list: candidates });
+      }
+
     } else {
-      // Multiple faces — show picker
-      setAutoCropStatus({ kind: 'candidates', list: candidates });
+      // ── Document mode: edge/contour detection ──────────────────
+      const corners = await detectDocumentRegion(dataUrl);
+
+      if (!corners) {
+        if (silent) {
+          setAutoCropStatus({ kind: 'idle' });
+        } else {
+          setAutoCropStatus({ kind: 'no-document' });
+        }
+        return;
+      }
+
+      applyDocumentCorners(corners);
+      setAutoCropStatus({ kind: 'idle' });
     }
-  }, [image.originalDataUrl, applyCropRegion]);
+  }, [
+    // Only stable callbacks here — no prop values, those come from refs
+    applyCropRegion,
+    applyDocumentCorners,
+  ]);
+
+  // Public handler for the explicit button click (never silent)
+  const handleAutoCrop = useCallback(() => runAutoCrop(false), [runAutoCrop]);
 
   const handlePickCandidate = useCallback((candidate: AutoCropCandidate) => {
     setCropMode('standard');
@@ -267,6 +328,53 @@ export function ImageEditor({
       setAutoCropStatus({ kind: 'idle' });
     }, 80);
   }, [applyCropRegion]);
+
+  // ── Auto-apply on image select ────────────────────────────────────
+  //
+  // Effect 1: fires when image.id changes (new image selected / Save & Next).
+  // Resets the dedup ref for the incoming image, then schedules auto-apply
+  // if enabled.  Reads toggle state from autoApplyEnabledRef so it always
+  // sees the current value even if the prop changed between renders.
+  useEffect(() => {
+    // Always reset so the new image gets a clean slate.
+    autoAppliedForRef.current = null;
+
+    // Read fresh from ref — not from a closed-over prop value.
+    if (!autoApplyEnabledRef.current) return;
+    if (imageCropDataRef.current !== null) return; // already has user crop — skip
+
+    autoAppliedForRef.current = image.id;
+    console.log(`[AutoCrop] auto-apply scheduled for new image id="${image.id}" mode="${autoCropModeRef.current}"`);
+
+    // Delay so CropperJS / PerspectiveCropOverlay finish mounting first.
+    const timer = setTimeout(() => {
+      runAutoCrop(true /* silent */);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  // runAutoCrop is stable (deps are only stable callbacks).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [image.id, runAutoCrop]);
+
+  // Effect 2: fires when the toggle is turned ON while an image is already
+  // displayed.  This lets the user enable auto-apply mid-session and have
+  // it fire immediately for the currently-shown image (if it has no crop).
+  useEffect(() => {
+    if (!editorGlobals.autoApplyAutoCrop) return;          // toggle just turned OFF — ignore
+    if (imageCropDataRef.current !== null) return;         // image already has a crop
+    if (autoAppliedForRef.current === image.id) return;    // already ran for this image
+
+    autoAppliedForRef.current = image.id;
+    console.log(`[AutoCrop] auto-apply triggered by toggle ON for image id="${image.id}" mode="${autoCropModeRef.current}"`);
+
+    const timer = setTimeout(() => {
+      runAutoCrop(true /* silent */);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  // Intentionally only re-fires when autoApplyAutoCrop flips to true.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editorGlobals.autoApplyAutoCrop]);
 
   // ── Core pipeline ─────────────────────────────────────────────────
   const getCroppedDataUrl = useCallback((): string | null => {
@@ -378,16 +486,24 @@ export function ImageEditor({
   const ratioLocked   = editorGlobals.lockedAspectRatio !== null;
   const resizeLocked  = editorGlobals.lockedResizeConfig !== null;
 
-  // ── Auto Crop "no face" toast (show once, then reset to idle) ─────
+  // ── Auto Crop "no detection" toasts ──────────────────────────────
+  // These fire in non-silent (manual button press) mode only, because in
+  // silent mode we flip directly to 'idle' before the status can persist.
   useEffect(() => {
     if (autoCropStatus.kind === 'no-face') {
-      toast('No face detected — switch to manual crop', {
-        icon: '🔍',
-        duration: 3000,
-      });
+      toast('No face detected — switch to manual crop', { icon: '🔍', duration: 3000 });
+      setAutoCropStatus({ kind: 'idle' });
+    }
+    if (autoCropStatus.kind === 'no-document') {
+      toast('No document edge detected — adjust manually', { icon: '📄', duration: 3000 });
       setAutoCropStatus({ kind: 'idle' });
     }
   }, [autoCropStatus.kind]);
+
+  const isRunning = autoCropStatus.kind === 'running';
+
+  // ── Derived globals for render ────────────────────────────────────
+  const { autoCropMode, autoApplyAutoCrop } = editorGlobals;
 
   return (
     <div className="editor-container">
@@ -413,18 +529,61 @@ export function ImageEditor({
           <PenTool size={15} /> Perspective
         </button>
 
-        {/* Auto Crop button — sits in the same bar, visually separated */}
+        {/* ── Auto Crop section ── */}
         <div className="crop-mode-sep" />
+
+        {/* Mode selector: Photo vs Document */}
+        <div className="autocrop-mode-selector" role="group" aria-label="Auto Crop mode">
+          <button
+            className={`autocrop-mode-btn ${autoCropMode === 'photo' ? 'active' : ''}`}
+            onClick={() => onGlobalsChange({ autoCropMode: 'photo' })}
+            title="Photo Auto Crop — detect face and suggest passport-style crop"
+          >
+            <Camera size={13} /> Photo
+          </button>
+          <button
+            className={`autocrop-mode-btn ${autoCropMode === 'document' ? 'active' : ''}`}
+            onClick={() => onGlobalsChange({ autoCropMode: 'document' })}
+            title="Document Auto Crop — detect outer document boundary"
+          >
+            <FileText size={13} /> Document
+          </button>
+        </div>
+
+        {/* Run button */}
         <button
-          className={`crop-mode-btn crop-mode-btn--auto${autoCropStatus.kind === 'running' ? ' running' : ''}`}
+          className={`crop-mode-btn crop-mode-btn--auto${isRunning ? ' running' : ''}`}
           onClick={handleAutoCrop}
-          disabled={autoCropStatus.kind === 'running'}
-          title="Detect face and suggest a passport-style crop"
+          disabled={isRunning}
+          title={
+            autoCropMode === 'photo'
+              ? 'Detect face and suggest a passport-style crop'
+              : 'Detect document boundary and set perspective corners'
+          }
         >
-          {autoCropStatus.kind === 'running'
+          {isRunning
             ? <><Loader2 size={15} className="spin" /> Detecting…</>
             : <><Scan size={15} /> Auto Crop</>
           }
+        </button>
+
+        {/* Auto-apply toggle */}
+        <div className="crop-mode-sep" />
+        <button
+          className={`autocrop-toggle-btn${autoApplyAutoCrop ? ' on' : ''}`}
+          onClick={() => onGlobalsChange({ autoApplyAutoCrop: !autoApplyAutoCrop })}
+          title={
+            autoApplyAutoCrop
+              ? 'Auto-apply on select: ON — click to disable'
+              : 'Auto-apply on select: OFF — click to enable'
+          }
+          aria-pressed={autoApplyAutoCrop}
+        >
+          {autoApplyAutoCrop
+            ? <ToggleRight size={16} className="autocrop-toggle-icon on" />
+            : <ToggleLeft  size={16} className="autocrop-toggle-icon"    />
+          }
+          <span className="autocrop-toggle-label">Auto-apply</span>
         </button>
       </div>
 

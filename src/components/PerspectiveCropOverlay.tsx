@@ -34,6 +34,13 @@ import {
 
 export interface PerspectiveCropHandle {
   getCroppedCanvas: () => HTMLCanvasElement | null;
+  /**
+   * Programmatically set the four corner handles from original-image pixel
+   * coordinates (e.g. from Document Auto Crop detection).
+   * Points must be supplied in order: topLeft, topRight, bottomRight, bottomLeft.
+   * Each point is clamped to [0..1] in normalised display-canvas space.
+   */
+  setCorners: (corners: { topLeft: {x:number;y:number}; topRight: {x:number;y:number}; bottomRight: {x:number;y:number}; bottomLeft: {x:number;y:number} }) => void;
 }
 
 interface NormPoint  { nx: number; ny: number }
@@ -278,8 +285,45 @@ export const PerspectiveCropOverlay = forwardRef<PerspectiveCropHandle, Props>(
         out.getContext('2d')!.putImageData(outData, 0, 0);
         return out;
       },
+
+      setCorners(corners: { topLeft: {x:number;y:number}; topRight: {x:number;y:number}; bottomRight: {x:number;y:number}; bottomLeft: {x:number;y:number} }): void {
+        const img = imgRef.current;
+        const rc  = rotatedCanvasRef.current;
+        if (!img || !rc) return;
+
+        const origW = img.naturalWidth;
+        const origH = img.naturalHeight;
+        const deg   = prevRotRef.current;
+
+        // The four corners arrive in original-image pixel space.
+        // We need to convert them to normalised rotated-canvas space
+        // so they display correctly in the overlay:
+        //   orig pixel → rotated canvas pixel (apply forward rotation) → normalise
+        const rad = (deg * Math.PI) / 180;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+
+        const orderered = [corners.topLeft, corners.topRight, corners.bottomRight, corners.bottomLeft];
+        const norm: NormPoint[] = orderered.map(({ x, y }) => {
+          // Translate to image centre
+          const cx = x - origW / 2;
+          const cy = y - origH / 2;
+          // Rotate forward by deg degrees (clockwise)
+          const rx = cx * cos - cy * sin;
+          const ry = cx * sin + cy * cos;
+          // Translate to rotated-canvas centre
+          const px = rx + rc.width  / 2;
+          const py = ry + rc.height / 2;
+          return {
+            nx: Math.max(0, Math.min(1, px / rc.width)),
+            ny: Math.max(0, Math.min(1, py / rc.height)),
+          };
+        });
+
+        commitHandles(norm);
+      },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }), []);   // reads only from refs — always current, no stale closure risk
+    }), [commitHandles]);   // commitHandles is stable; reads rest from refs
 
     // ── Load image ────────────────────────────────────────────────────────
     useEffect(() => {

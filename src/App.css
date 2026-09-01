@@ -745,6 +745,96 @@ img {
   opacity: 0.7;
 }
 
+/* ── Auto Crop mode selector (Photo / Document pills) ────── */
+
+.autocrop-mode-selector {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.autocrop-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background var(--trans), color var(--trans);
+  white-space: nowrap;
+}
+
+.autocrop-mode-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.autocrop-mode-btn.active {
+  background: var(--bg-active);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── Auto-apply toggle button ────────────────────────────── */
+
+.autocrop-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--trans), color var(--trans), border-color var(--trans);
+  white-space: nowrap;
+}
+
+.autocrop-toggle-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+/* ON state — accent tint to make the toggle visually prominent */
+.autocrop-toggle-btn.on {
+  background: var(--accent-dim);
+  border-color: rgba(124, 106, 247, 0.4);
+  color: var(--accent);
+}
+
+.autocrop-toggle-btn.on:hover {
+  background: rgba(124, 106, 247, 0.22);
+}
+
+.autocrop-toggle-label {
+  /* keep the text crisp at small sizes */
+  letter-spacing: 0.01em;
+}
+
+.autocrop-toggle-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: color var(--trans);
+}
+
+.autocrop-toggle-icon.on {
+  color: var(--accent);
+}
+
 /* ── Auto Crop candidate picker ──────────────────────────── */
 
 .autocrop-picker {
