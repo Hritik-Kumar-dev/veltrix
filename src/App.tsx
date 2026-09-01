@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { useImageStore } from './hooks/useImageStore';
 import { Toolbar }           from './components/Toolbar';
 import { ImageQueue }        from './components/ImageQueue';
@@ -60,6 +61,7 @@ function App() {
         }}
       />
       <Analytics />
+      <SpeedInsights />
 
       <Toolbar
         images={images}
