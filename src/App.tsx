@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Toaster } from 'react-hot-toast';
+import { Analytics } from '@vercel/analytics/react';
 import { useImageStore } from './hooks/useImageStore';
 import { Toolbar }           from './components/Toolbar';
 import { ImageQueue }        from './components/ImageQueue';
@@ -49,6 +50,7 @@ function App() {
 
   return (
     <div className="app-root">
+      <Analytics />
       <Toaster
         position="top-right"
         toastOptions={{
