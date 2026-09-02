@@ -1,75 +1,96 @@
-# React + TypeScript + Vite
+<div align="center">
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+# ⚡ VELTRIX
 
-Currently, two official plugins are available:
+### *Local-first batch image & document processing, reimagined.*
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+`crop` · `align` · `compress` · `print` — all in your browser, all offline
 
-## React Compiler
+![status](https://img.shields.io/badge/status-in%20development-8A2BE2?style=for-the-badge)
+![privacy](https://img.shields.io/badge/data-never%20leaves%20your%20device-00FFFF?style=for-the-badge)
+![platform](https://img.shields.io/badge/platform-web%20%7C%20mobile%20(soon)-FF006E?style=for-the-badge)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+</div>
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## ◈ What is Veltrix?
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Veltrix is **not** an artistic photo editor — it's a precision instrument for the unglamorous, repetitive work of getting *images and documents* into the exact shape institutions demand. Passport photos. Scanned forms. Signatures. Batches of student IDs. The stuff that usually takes an afternoon in fifty browser tabs.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+Veltrix does it **locally, instantly, and privately** — nothing you process is ever uploaded to a server.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+> **Import → Edit → Preview → Save → Organize → Export**
+> One pipeline. Zero uploads. Full control.
 
-```
+---
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## ◈ Core Features
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+| Module | What it does |
+|---|---|
+| 🖼️ **Non-Destructive Editor** | Original image and processed output are kept fully separate — edit freely, revert anytime |
+| ✂️ **Smart Crop** | Standard crop + 4-corner perspective crop with edge-midpoint handles, fine & 90° rotation |
+| 📐 **Aspect Presets** | Passport (7:9), square, and custom ratios, live-previewed |
+| 📄 **PDF Import** | Drop in a PDF, get each page as an editable item |
+| 🗂️ **Gallery Engine** | Drag-and-drop reordering, duplication, delete/undo |
+| 🗜️ **Target Compression** | Squeeze to 100KB / 200KB / 500KB / 1MB for upload-limit compliance |
+| 🏷️ **Bulk Rename** | Prefix + sequential numbering, gallery-order aware |
+| 📦 **ZIP Export** | Custom filenames, batch download |
+| 🖨️ **Print Studio** | Real-world mm/cm/inch layout on A4/A3/Legal/B4/custom pages, freeform placement, print-ready export |
+| 🎯 **Auto Crop** *(in progress)* | Photo mode (face detection + passport heuristics) & Document mode (edge/contour detection + straightening) |
+| ⚡ **Auto-Apply** *(in progress)* | Runs Auto Crop the instant an image is selected — no button press |
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+---
+
+## ◈ Design Philosophy
 
 ```
+┌─────────────────────────────────────────────┐
+│  PRIVACY FIRST     →  processing stays local │
+│  SPEED              →  no round-trip to a server │
+│  PRECISION          →  built for compliance-grade output │
+│  NON-DESTRUCTIVE    →  originalDataUrl ≠ processedDataUrl │
+└─────────────────────────────────────────────┘
+```
+
+Every image carries two states under the hood:
+
+- `originalDataUrl` — the untouched source, always recoverable
+- `processedDataUrl` — the saved, edited output
+
+This means you can iterate aggressively without ever fearing data loss.
+
+---
+
+## ◈ Keyboard-First Workflow
+
+| Key | Action |
+|---|---|
+| `Space` | Save current image & advance to next |
+| `Drag` | Reorder gallery items |
+
+*(More shortcuts coming as the editor matures.)*
+
+---
+
+## ◈ Roadmap
+
+- [x] Core crop / rotate / preset editor
+- [x] PDF import & page splitting
+- [x] Bulk rename + ZIP export
+- [x] Print Studio (mm-canonical, multi-image page layout)
+- [ ] Auto Crop — Photo mode (face detection)
+- [ ] Auto Crop — Document mode (contour detection)
+- [ ] Auto-Apply toggle — full wiring
+- [ ] 📱 **Veltrix Mobile** — a standalone React Native app (`veltrixapp`), camera-first capture with instant Auto Crop, aiming for full feature parity with the web app
+
+---
+
+<div align="center">
+
+### ◈ Built for the batch. Built for privacy. Built for speed. ◈
+
+*Veltrix — your files never leave the room.*
+
+</div>
