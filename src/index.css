@@ -1,4 +1,68 @@
-/* Base reset — all design tokens and component styles live in App.css */
-*, *::before, *::after {
-  box-sizing: border-box;
+/*
+ * Global entry stylesheet.
+ *
+ * 1. Tailwind v4 — activates utility classes for the landing page.
+ *    The editor uses zero Tailwind utilities (all custom CSS in App.css),
+ *    so this is purely additive and does not affect the editor.
+ *
+ * 2. Base box-sizing reset — kept here so it applies before App.css.
+ *
+ * NOTE: Tailwind v4's @import includes its own preflight/base reset.
+ *       The editor's App.css also resets box-sizing and margins, which is
+ *       fine — the last declaration wins and they are identical in intent.
+ */
+@import "tailwindcss";
+
+/*
+ * Custom theme tokens for the landing page (Tailwind v4 CSS-based config).
+ * @theme must live in the same file as @import "tailwindcss" so that
+ * Tailwind's compiler resolves it before LightningCSS sees the output.
+ */
+@theme {
+  /* Landing font families — used via font-kola, font-sans, font-geist utilities */
+  --font-kola:  "Kola", serif;
+  --font-sans:  "Geist Mono", ui-monospace, monospace;
+  --font-mono:  "Geist Mono", ui-monospace, monospace;
+  --font-geist: "Geist Mono", ui-monospace, monospace;
+
+  /* Landing color tokens — used via bg-veltrix-darker, text-veltrix-text */
+  --color-veltrix-darker: #050508;
+  --color-veltrix-text:   #E8E8F0;
+}
+
+/*
+ * Register the custom @font-face declarations globally so both routes
+ * (landing + editor) share the same font files without double-loading.
+ * The editor's App.css also declares these; browsers deduplicate identical
+ * @font-face rules, so there is no double-load penalty.
+ */
+
+/* Kola — logotype / wordmark font */
+@font-face {
+  font-family: 'Kola';
+  src:
+    url('./assets/fonts/Kola_Complete/Fonts/WEB/fonts/Kola-Regular.woff2') format('woff2'),
+    url('./assets/fonts/Kola_Complete/Fonts/WEB/fonts/Kola-Regular.woff')  format('woff'),
+    url('./assets/fonts/Kola_Complete/Fonts/WEB/fonts/Kola-Regular.ttf')   format('truetype');
+  font-weight: 400;
+  font-style:  normal;
+  font-display: swap;
+}
+
+/* Geist Mono — variable, all weights, normal */
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('./assets/fonts/Geist_Mono/GeistMono-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style:  normal;
+  font-display: swap;
+}
+
+/* Geist Mono — variable, all weights, italic */
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('./assets/fonts/Geist_Mono/GeistMono-Italic-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style:  italic;
+  font-display: swap;
 }

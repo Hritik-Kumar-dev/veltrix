@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { FolderOpen, Download, DownloadCloud, Trash2, Tag, ArrowLeft, Loader2, Printer } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
@@ -129,10 +130,10 @@ export function Toolbar({
 
   return (
     <header className="toolbar">
-      <div className="toolbar-brand">
+      <Link to="/" className="toolbar-brand" title="Back to home">
         <img src="/veltrix_logo.png" alt="VeltriX logo" className="brand-icon brand-logo" />
         <span className="brand-name">VeltriX</span>
-      </div>
+      </Link>
 
       {view === 'rename' && (
         <button className="toolbar-btn toolbar-back-btn" onClick={onNavigateEditor}>

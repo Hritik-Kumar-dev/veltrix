@@ -1,0 +1,49 @@
+/*
+ * Landing page styles — scoped entirely to .landing-root
+ *
+ * Tailwind utilities (font-kola, bg-veltrix-darker, etc.) are registered
+ * via @theme in src/index.css, which is the root of the Tailwind pipeline.
+ * This file only provides the structural/base rules for the landing wrapper.
+ *
+ * Isolation guarantees:
+ *   - html/body/root in App.css use overflow:hidden for the editor.
+ *   - .landing-root below uses position:fixed to create its own stacking
+ *     context and take full viewport without fighting those rules.
+ *   - No Tailwind resets or global rules are emitted here.
+ */
+
+/* ── Scoped base for the landing root ── */
+.landing-root {
+  /* Take over the full viewport without touching html/body overflow */
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #050508;
+
+  /* Reset the editor body's 13px font-size back to 16px for the landing */
+  font-size: 16px;
+  line-height: 1.5;
+  font-family: "Geist Mono", ui-monospace, monospace;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.landing-root *,
+.landing-root *::before,
+.landing-root *::after {
+  box-sizing: border-box;
+}
+
+/* Scrollbar theming inside landing */
+.landing-root ::-webkit-scrollbar { width: 6px; }
+.landing-root ::-webkit-scrollbar-track { background: #0A0A0F; }
+.landing-root ::-webkit-scrollbar-thumb {
+  background: #6C63FF;
+  border-radius: 3px;
+}
+
+/* Selection colour */
+.landing-root ::selection {
+  background: rgba(108, 99, 255, 0.4);
+  color: #fff;
+}
