@@ -27,11 +27,16 @@ import {
   PackageCheck, Tag, Printer, ScanFace,
 } from "lucide-react";
 
-// ─── Single accent color (matches editor PerspectiveCropOverlay handle color) ─
-const ACCENT      = "#7c6af7";
-const ACCENT_DIM  = "rgba(124,106,247,0.18)";
-const ACCENT_GLO  = "rgba(124,106,247,0.50)";
-const ACCENT_MED  = "rgba(124,106,247,0.35)";
+// ─── Color constants ──────────────────────────────────────────────────────────
+// FRAME_COLOR: crop frame border, handles, crosshair, thirds grid — pure white
+const FRAME_COLOR  = "#ffffff";
+const FRAME_GLO    = "rgba(255,255,255,0.40)";
+
+// UI_ACCENT: button fill, "Privately." text, hover highlights — purple
+const UI_ACCENT    = "#7c6af7";
+const UI_ACCENT_DIM = "rgba(124,106,247,0.18)";
+const UI_ACCENT_MED = "rgba(124,106,247,0.35)";
+const UI_ACCENT_88  = "#7c6af788";
 
 // ─── Feature list (icon + label only — no card backgrounds, no borders) ───────
 interface Feature { label: string; icon: React.ReactElement; }
@@ -193,8 +198,8 @@ function CropFrameReveal({ onDone, instant }: CropFrameRevealProps) {
         style={{
           position: "absolute",
           boxSizing: "border-box",
-          border: `1.5px solid ${ACCENT}`,
-          boxShadow: `0 0 0 1px ${ACCENT}22, 0 0 20px 2px ${ACCENT}14`,
+          border: `1.5px solid ${FRAME_COLOR}`,
+          boxShadow: `0 0 0 1px ${FRAME_COLOR}22, 0 0 20px 2px ${FRAME_COLOR}14`,
         }}
       >
         {/* Rule-of-thirds grid */}
@@ -227,10 +232,10 @@ function CropFrameReveal({ onDone, instant }: CropFrameRevealProps) {
             display: "flex", alignItems: "center", justifyContent: "center",
           }}
         >
-          <div style={{ position: "absolute", width: 14, height: 1, background: ACCENT, opacity: 0.85 }} />
-          <div style={{ position: "absolute", width: 1, height: 14, background: ACCENT, opacity: 0.85 }} />
-          <div style={{ width: 3, height: 3, borderRadius: "50%", background: ACCENT,
-                        boxShadow: `0 0 6px 2px ${ACCENT_GLO}` }} />
+          <div style={{ position: "absolute", width: 14, height: 1, background: FRAME_COLOR, opacity: 0.85 }} />
+          <div style={{ position: "absolute", width: 1, height: 14, background: FRAME_COLOR, opacity: 0.85 }} />
+          <div style={{ width: 3, height: 3, borderRadius: "50%", background: FRAME_COLOR,
+                        boxShadow: `0 0 6px 2px ${FRAME_GLO}` }} />
         </div>
       </div>
     </div>
@@ -248,7 +253,7 @@ function thirdLineH(n: 1 | 2): React.CSSProperties {
     position: "absolute", left: 0, right: 0,
     top: `${(n / 3) * 100}%`, height: 1,
     backgroundImage: `repeating-linear-gradient(90deg,
-      ${ACCENT}44 0px, ${ACCENT}44 5px, transparent 5px, transparent 11px)`,
+      ${FRAME_COLOR}44 0px, ${FRAME_COLOR}44 5px, transparent 5px, transparent 11px)`,
   };
 }
 function thirdLineV(n: 1 | 2): React.CSSProperties {
@@ -256,7 +261,7 @@ function thirdLineV(n: 1 | 2): React.CSSProperties {
     position: "absolute", top: 0, bottom: 0,
     left: `${(n / 3) * 100}%`, width: 1,
     backgroundImage: `repeating-linear-gradient(180deg,
-      ${ACCENT}44 0px, ${ACCENT}44 5px, transparent 5px, transparent 11px)`,
+      ${FRAME_COLOR}44 0px, ${FRAME_COLOR}44 5px, transparent 5px, transparent 11px)`,
   };
 }
 
@@ -279,13 +284,13 @@ function CornerHandle({ pos }: { pos: CornerPos }) {
   const h: React.CSSProperties = {
     position: "absolute",
     height: CORNER_THK, width: CORNER_ARM + CORNER_THK,
-    background: ACCENT, boxShadow: `0 0 5px 1px ${ACCENT_GLO}`,
+    background: FRAME_COLOR, boxShadow: `0 0 5px 1px ${FRAME_GLO}`,
     ...(isTop ? { top: 0 } : { bottom: 0 }), left: 0,
   };
   const v: React.CSSProperties = {
     position: "absolute",
     width: CORNER_THK, height: CORNER_ARM,
-    background: ACCENT, boxShadow: `0 0 5px 1px ${ACCENT_GLO}`,
+    background: FRAME_COLOR, boxShadow: `0 0 5px 1px ${FRAME_GLO}`,
     ...(isTop  ? { top: CORNER_THK }    : { bottom: CORNER_THK }),
     ...(isLeft ? { left: 0 }            : { right: 0 }),
   };
@@ -301,9 +306,9 @@ function EdgeHandle({ pos }: { pos: EdgePos }) {
   const base: React.CSSProperties = {
     position: "absolute",
     width: EDGE_SZ, height: EDGE_SZ,
-    background: ACCENT,
+    background: FRAME_COLOR,
     border: "1.5px solid rgba(255,255,255,0.85)",
-    boxShadow: `0 0 6px 1px ${ACCENT_GLO}`,
+    boxShadow: `0 0 6px 1px ${FRAME_GLO}`,
     borderRadius: 1,
   };
   const p: React.CSSProperties =
@@ -325,15 +330,14 @@ function WatermarkLogo() {
       style={{
         position: "absolute", top: "50%", left: "50%",
         transform: "translate(-50%,-50%)",
-        // Smaller than before — 22vw capped at 220px, so it's a tasteful watermark
-        width: "min(22vw, 220px)",
+        width: "min(55vw, 520px)",
         zIndex: 1,
         pointerEvents: "auto",
         userSelect: "none",
         transition: "opacity 0.35s ease, filter 0.35s ease",
         opacity:    hovered ? 0.18 : 0.07,
         filter:     hovered
-          ? `drop-shadow(0 0 18px ${ACCENT}) drop-shadow(0 0 40px ${ACCENT_MED})`
+          ? `drop-shadow(0 0 18px ${UI_ACCENT}) drop-shadow(0 0 40px ${UI_ACCENT_MED})`
           : "none",
       }}
     >
@@ -423,7 +427,7 @@ function HeroContent({
       >
         Batch Edit.{" "}
         {/* Single accent color — no cyan gradient */}
-        <span style={{ color: ACCENT }}>Privately.</span>
+        <span style={{ color: UI_ACCENT }}>Privately.</span>
       </h1>
 
       {/* ── Subtext ── */}
@@ -460,20 +464,20 @@ function HeroContent({
             fontSize: "clamp(13px, 1vw, 15px)",
             fontWeight: 700,
             color: "#FFFFFF",
-            background: ACCENT,
+            background: UI_ACCENT,
             border: "none",
             cursor: "pointer",
-            boxShadow: `0 4px 22px ${ACCENT_DIM}`,
+            boxShadow: `0 4px 22px ${UI_ACCENT_DIM}`,
             transition: "transform 0.18s ease, box-shadow 0.18s ease",
             whiteSpace: "nowrap",
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.transform = "translateY(-2px)";
-            e.currentTarget.style.boxShadow = `0 8px 32px ${ACCENT_MED}`;
+            e.currentTarget.style.boxShadow = `0 8px 32px ${UI_ACCENT_MED}`;
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.boxShadow = `0 4px 22px ${ACCENT_DIM}`;
+            e.currentTarget.style.boxShadow = `0 4px 22px ${UI_ACCENT_DIM}`;
           }}
         >
           {/* Globe icon */}
@@ -505,7 +509,7 @@ function HeroContent({
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.color = "#FFFFFF";
-            e.currentTarget.style.borderColor = `${ACCENT}88`;
+            e.currentTarget.style.borderColor = `${UI_ACCENT_88}`;
             e.currentTarget.style.transform = "translateY(-2px)";
           }}
           onMouseLeave={(e) => {
@@ -540,7 +544,7 @@ function HeroContent({
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.color = "#FFFFFF";
-            e.currentTarget.style.borderColor = `${ACCENT}88`;
+            e.currentTarget.style.borderColor = `${UI_ACCENT_88}`;
             e.currentTarget.style.transform = "translateY(-2px)";
           }}
           onMouseLeave={(e) => {
