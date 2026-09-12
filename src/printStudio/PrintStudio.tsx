@@ -16,7 +16,8 @@ import { ExportBar } from './ExportBar';
 import { PrintPreview } from './PrintPreview';
 import type { ImageItem } from '../types';
 import { effectivePageSize } from './units';
-import { Plus, Printer, FileText, Trash2 } from 'lucide-react';
+import { Plus, Printer, FileText, Trash2, PanelLeft } from 'lucide-react';
+import { useState } from 'react';
 
 interface Props {
   /** Gallery images from useImageStore — read-only reference */
@@ -28,6 +29,7 @@ interface Props {
 }
 
 export function PrintStudio({ galleryImages, onImport, onImportItems }: Props) {
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(false);
   const {
     state,
     activeDoc,
@@ -99,6 +101,15 @@ export function PrintStudio({ galleryImages, onImport, onImportItems }: Props) {
     <div className="ps-root">
       {/* ── Top bar ── */}
       <div className="ps-topbar">
+        {/* Mobile sidebar toggle — CSS shows/hides this button */}
+        <button
+          className="ps-sidebar-toggle-btn"
+          onClick={() => setLeftSidebarOpen(o => !o)}
+          title={leftSidebarOpen ? 'Close panel' : 'Page setup & images'}
+          aria-label={leftSidebarOpen ? 'Close panel' : 'Open page setup panel'}
+        >
+          <PanelLeft size={15} />
+        </button>
         {/* Document tabs */}
         <div className="ps-doc-tabs">
           {state.documents.map((doc) => (
@@ -139,9 +150,22 @@ export function PrintStudio({ galleryImages, onImport, onImportItems }: Props) {
       </div>
 
       {/* ── Main workspace ── */}
-      <div className="ps-workspace">
+      <div className="ps-workspace" style={{ position: 'relative' }}>
+
+        {/* Mobile backdrop — tap to close left sidebar */}
+        {leftSidebarOpen && (
+          <div
+            onClick={() => setLeftSidebarOpen(false)}
+            style={{
+              position: 'absolute', inset: 0,
+              zIndex: 29,
+              background: 'rgba(0,0,0,0.45)',
+            }}
+          />
+        )}
+
         {/* Left sidebar */}
-        <aside className="ps-sidebar ps-sidebar--left">
+        <aside className={`ps-sidebar ps-sidebar--left${leftSidebarOpen ? ' ps-sidebar--mobile-open' : ''}`}>
           <PageSetupPanel
             doc={activeDoc}
             displayUnit={state.displayUnit}

@@ -3247,3 +3247,433 @@ a.toolbar-brand {
 a.toolbar-brand:hover {
   background: var(--bg-hover);
 }
+
+
+
+/* ============================================================
+   MOBILE / RESPONSIVE OVERRIDES
+   All breakpoints collected here so they're easy to audit.
+   Nothing above this block is modified.
+   ============================================================ */
+
+/* ── Sidebar toggle overlay (mobile) ─────────────────────── */
+
+/* The toggle button sits at the left edge of the editor body
+   and is only shown on small screens via the breakpoint below. */
+.sidebar-toggle-btn {
+  display: none;           /* hidden by default (desktop) */
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 20;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.sidebar-toggle-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Print Studio mobile sidebar toggle */
+.ps-sidebar-toggle-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ps-sidebar-toggle-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* ── Touch devices: always show hover-only action buttons ─── */
+
+@media (pointer: coarse) {
+  /* Queue list item actions */
+  .queue-actions {
+    opacity: 1;
+  }
+
+  /* Gallery card actions */
+  .gallery-card-actions {
+    display: flex;
+  }
+
+  /* Rename card drag grip */
+  .rp-card-grip {
+    opacity: 0.5;
+  }
+
+  /* Print tray add overlay — always slightly visible on touch */
+  .ps-tray-add-overlay {
+    opacity: 0.0;  /* keep hidden; tap-to-add still works via onClick */
+  }
+
+  /* Increase touch targets for small buttons */
+  .queue-action-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .view-toggle-btn {
+    width: 30px;
+    height: 30px;
+  }
+
+  .ar-lock-btn {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* ============================================================
+   ≤ 900px — Tablet
+   ============================================================ */
+
+@media (max-width: 900px) {
+  :root {
+    --sidebar-w: 200px;
+  }
+
+  /* Hide wordmark text next to logo */
+  .brand-name {
+    display: none;
+  }
+
+  /* Tighten toolbar buttons — icon only for secondary actions */
+  .toolbar-btn {
+    padding: 6px 8px;
+  }
+
+  /* Hide text labels inside toolbar buttons on tablet.
+     Wrap the text you want to hide in .toolbar-label in JSX;
+     for now we hide all direct text via font-size trick on specific btns. */
+  .toolbar-btn-label {
+    display: none;
+  }
+}
+
+/* ============================================================
+   ≤ 768px — Large phone / small tablet
+   ============================================================ */
+
+@media (max-width: 768px) {
+  /* Print Studio left sidebar hidden by default on mobile;
+     shown when ps-sidebar--mobile-open class is added */
+  .ps-sidebar--left {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 30;
+    transform: translateX(-100%);
+    transition: transform 200ms ease;
+    box-shadow: none;
+  }
+
+  .ps-sidebar--left.ps-sidebar--mobile-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 20px rgba(0,0,0,0.5);
+  }
+
+  /* Show the sidebar toggle button in topbar */
+  .ps-sidebar-toggle-btn {
+    display: inline-flex;
+  }
+
+  /* Right sidebar also hides; it only shows when element selected and open */
+  .ps-sidebar--right {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 30;
+  }
+
+  /* Bottom bar wraps when tight */
+  .ps-bottom-bar {
+    height: auto;
+    min-height: 40px;
+    flex-wrap: wrap;
+    padding: 4px 8px;
+    gap: 4px;
+  }
+
+  /* Hide the document name input — show only on larger screens */
+  .ps-doc-name-input {
+    display: none;
+  }
+
+  /* Canvas padding reduced */
+  .ps-canvas-scroll {
+    padding: 16px;
+  }
+}
+
+/* ============================================================
+   ≤ 640px — Phone portrait (primary mobile breakpoint)
+   ============================================================ */
+
+@media (max-width: 640px) {
+  :root {
+    --sidebar-w: 220px;  /* Full-width overlay on mobile, so make it comfortable */
+  }
+
+  /* ── App shell ────────────────────────────────────────── */
+
+  /* Allow editor body to be positioned so toggle btn can be absolute */
+  .app-body {
+    position: relative;
+  }
+
+  /* Show the sidebar toggle button */
+  .sidebar-toggle-btn {
+    display: inline-flex;
+  }
+
+  /* Queue sidebar: hidden off-screen by default, slides in as overlay */
+  .queue-sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 20;
+    width: var(--sidebar-w);
+    transform: translateX(-100%);
+    transition: transform 220ms ease;
+    /* shadow so it overlays the editor */
+    box-shadow: none;
+  }
+
+  .queue-sidebar.sidebar-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0,0,0,0.6);
+  }
+
+  /* Editor section takes full width when sidebar is hidden */
+  .editor-section {
+    width: 100%;
+  }
+
+  /* ── Toolbar ──────────────────────────────────────────── */
+
+  /* Hide zip name input on very small screens */
+  .zip-name-field {
+    display: none;
+  }
+
+  /* Hide "Download All" text — keep icon only. Since text is inline
+     we hide via max-width collapse instead of display:none so the
+     icon still shows */
+  .toolbar-btn {
+    gap: 0;
+    padding: 6px 7px;
+  }
+
+  /* Keep the Import (primary) button readable */
+  .toolbar-btn.primary {
+    padding: 6px 10px;
+    gap: 5px;
+  }
+
+  /* Hide text nodes inside toolbar btns except Import label */
+  .toolbar-btn-text {
+    display: none;
+  }
+
+  /* ── Crop mode bar ────────────────────────────────────── */
+
+  .crop-mode-bar {
+    flex-wrap: wrap;
+    padding: 4px 8px;
+    gap: 3px;
+  }
+
+  /* Smaller mode buttons */
+  .crop-mode-btn {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  /* Collapse auto-crop toggle label */
+  .autocrop-toggle-label {
+    display: none;
+  }
+
+  /* ── Editor controls ──────────────────────────────────── */
+
+  .editor-controls {
+    padding: 8px 10px;
+    gap: 8px;
+    max-height: 38vh;
+    overflow-y: auto;
+  }
+
+  /* Hide control labels to save width */
+  .control-label {
+    display: none;
+  }
+
+  /* Number inputs tighter */
+  .rotate-number {
+    width: 44px;
+  }
+
+  /* Hide keyboard hint row */
+  .kbd-hints {
+    display: none;
+  }
+
+  /* Editor action buttons: allow wrap */
+  .editor-actions {
+    flex-wrap: wrap;
+  }
+
+  /* Smaller action buttons */
+  .action-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  /* ── Queue sidebar items ──────────────────────────────── */
+
+  .queue-name {
+    font-size: 11px;
+  }
+
+  /* Always-visible actions on mobile (touch doesn't have hover) */
+  .queue-actions {
+    opacity: 1;
+  }
+
+  .gallery-card-actions {
+    display: flex;
+  }
+
+  /* Bigger touch targets */
+  .queue-action-btn {
+    width: 30px;
+    height: 30px;
+  }
+
+  /* ── Rename page ──────────────────────────────────────── */
+
+  .rp-root {
+    flex-direction: column;
+  }
+
+  .rp-gallery-section {
+    /* Take remaining space; min-height:0 allows the flex child to shrink
+       so the gallery grid can scroll rather than overflow the container */
+    flex: 1 1 0;
+    min-height: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .rp-gallery-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .rp-controls {
+    width: 100%;
+    /* Switch from flex-shrink:0 to a bounded max-height so the controls
+       panel never pushes the gallery section off-screen */
+    flex-shrink: 0;
+    max-height: 52vh;
+    overflow-y: auto;
+  }
+
+  .rp-controls-body {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .rp-field {
+    min-width: 140px;
+  }
+
+  /* ── UndoBanner ───────────────────────────────────────── */
+
+  .undo-banner {
+    min-width: 0;
+    width: calc(100vw - 32px);
+    white-space: normal;
+  }
+
+  /* ── Print studio ─────────────────────────────────────── */
+
+  .ps-topbar {
+    padding: 0 8px;
+    gap: 4px;
+  }
+
+  .ps-doc-tabs {
+    font-size: 11px;
+  }
+
+  .ps-doc-tab {
+    padding: 3px 7px;
+    font-size: 11px;
+    max-width: 100px;
+  }
+}
+
+/* ============================================================
+   ≤ 400px — Very small phones (e.g. iPhone SE 320px)
+   ============================================================ */
+
+@media (max-width: 400px) {
+  /* Hide "Rename" and "Print Studio" nav buttons entirely — keep Import + Clear */
+  .toolbar-btn:not(.primary):not(.danger) {
+    display: none;
+  }
+
+  /* But always show the back button when in rename/print view */
+  .toolbar-back-btn {
+    display: inline-flex;
+  }
+
+  /* Even tighter editor controls */
+  .editor-controls {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+
+  /* Wrap crop mode bar items earlier */
+  .crop-mode-btn {
+    padding: 3px 6px;
+    font-size: 10px;
+  }
+
+  /* Stack action buttons */
+  .editor-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .action-btn {
+    justify-content: center;
+  }
+}

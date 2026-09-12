@@ -137,13 +137,13 @@ export function Toolbar({
 
       {view === 'rename' && (
         <button className="toolbar-btn toolbar-back-btn" onClick={onNavigateEditor}>
-          <ArrowLeft size={16} /> Back to Editor
+          <ArrowLeft size={16} /> <span className="toolbar-btn-text">Back to Editor</span>
         </button>
       )}
 
       {view === 'print' && (
         <button className="toolbar-btn toolbar-back-btn" onClick={onNavigateEditor}>
-          <ArrowLeft size={16} /> Back to Editor
+          <ArrowLeft size={16} /> <span className="toolbar-btn-text">Back to Editor</span>
         </button>
       )}
 
@@ -155,8 +155,8 @@ export function Toolbar({
             disabled={importing}
           >
             {importing
-              ? <><Loader2 size={16} className="spin" /> Importing…</>
-              : <><FolderOpen size={16} /> Import</>
+              ? <><Loader2 size={16} className="spin" /> <span className="toolbar-btn-text">Importing…</span></>
+              : <><FolderOpen size={16} /> <span className="toolbar-btn-text">Import</span></>
             }
           </button>
         )}
@@ -165,7 +165,7 @@ export function Toolbar({
 
         {view === 'editor' ? (
           <button className="toolbar-btn" onClick={onNavigateRename} title="Open bulk rename workspace">
-            <Tag size={16} /> Rename
+            <Tag size={16} /> <span className="toolbar-btn-text">Rename</span>
           </button>
         ) : view === 'rename' ? (
           <span className="toolbar-view-indicator"><Tag size={14} /> Bulk Rename</span>
@@ -177,7 +177,7 @@ export function Toolbar({
             onClick={onNavigatePrint}
             title="Open Print Studio"
           >
-            <Printer size={16} /> Print Studio
+            <Printer size={16} /> <span className="toolbar-btn-text">Print Studio</span>
           </button>
         )}
 
@@ -210,7 +210,7 @@ export function Toolbar({
               title="Export all images as ZIP"
             >
               <DownloadCloud size={16} />
-              Export ZIP
+              <span className="toolbar-btn-text">Export ZIP</span>
               {doneCount > 0 && <span className="toolbar-badge">{doneCount}</span>}
             </button>
 
@@ -220,7 +220,7 @@ export function Toolbar({
               disabled={images.length === 0}
               title="Download each image individually"
             >
-              <Download size={16} /> Download All
+              <Download size={16} /> <span className="toolbar-btn-text">Download All</span>
             </button>
 
             <div className="toolbar-divider" />
@@ -232,7 +232,7 @@ export function Toolbar({
           onClick={handleClearAll}
           disabled={images.length === 0}
         >
-          <Trash2 size={16} /> Clear All
+          <Trash2 size={16} /> <span className="toolbar-btn-text">Clear All</span>
         </button>
       </div>
 

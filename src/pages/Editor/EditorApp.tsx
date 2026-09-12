@@ -3,7 +3,8 @@
  * This is the exact App.tsx logic extracted verbatim, now mounted at /editor.
  * Nothing about the editor's behaviour, state, or styling is changed.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { PanelLeft } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
@@ -35,6 +36,14 @@ export default function EditorApp() {
 
   const [view, setView] = useState<AppView>('editor');
   const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Close sidebar when switching views or selecting a new image
+  useEffect(() => { setSidebarOpen(false); }, [view]);
+  const handleSelect = useCallback((id: string) => {
+    setActiveId(id);
+    setSidebarOpen(false);
+  }, [setActiveId]);
 
   const hasNext = images.some((img) => img.status !== 'done' && img.id !== activeId);
 
@@ -96,11 +105,33 @@ export default function EditorApp() {
 
       {view === 'editor' && (
         <main className="app-body">
+          {/* Mobile sidebar toggle — only visible on small screens via CSS */}
+          <button
+            className="sidebar-toggle-btn"
+            onClick={() => setSidebarOpen(o => !o)}
+            title={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+            aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+          >
+            <PanelLeft size={16} />
+          </button>
+
+          {/* Tap-outside backdrop to close sidebar on mobile */}
+          {sidebarOpen && (
+            <div
+              onClick={() => setSidebarOpen(false)}
+              style={{
+                position: 'absolute', inset: 0,
+                zIndex: 19,
+                background: 'rgba(0,0,0,0.45)',
+              }}
+            />
+          )}
+
           <ImageQueue
             images={images}
             activeId={activeId}
             renameConfig={renameConfig}
-            onSelect={setActiveId}
+            onSelect={handleSelect}
             onRemove={removeImage}
             onReset={resetImage}
             onReorder={reorderImages}
@@ -108,6 +139,7 @@ export default function EditorApp() {
             doneCount={doneCount}
             pendingCount={pendingCount}
             previewDataUrl={previewDataUrl}
+            sidebarOpen={sidebarOpen}
           />
 
           <section className="editor-section">

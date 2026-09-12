@@ -16,6 +16,8 @@ interface Props {
   pendingCount: number;
   /** Live thumbnail from the open editor; null when nothing is editing. */
   previewDataUrl?: string | null;
+  /** Whether the sidebar is open on mobile (adds CSS class for slide-in). */
+  sidebarOpen?: boolean;
 }
 
 type ViewMode = 'list' | 'grid';
@@ -29,7 +31,7 @@ function StatusIcon({ status }: { status: ImageItem['status'] }) {
 export function ImageQueue({
   images, activeId, renameConfig,
   onSelect, onRemove, onReset, onReorder, onDuplicate,
-  doneCount, pendingCount, previewDataUrl,
+  doneCount, pendingCount, previewDataUrl, sidebarOpen,
 }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
 
@@ -212,7 +214,7 @@ export function ImageQueue({
   };
 
   return (
-    <aside className="queue-sidebar">
+    <aside className={`queue-sidebar${sidebarOpen ? ' sidebar-open' : ''}`}>
       <div className="queue-stats">
         <span className="stat done">{doneCount} done</span>
         <span className="stat-sep">/</span>
