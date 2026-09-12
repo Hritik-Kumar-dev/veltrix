@@ -198,7 +198,7 @@ function CropFrameReveal({ onDone, instant }: CropFrameRevealProps) {
         style={{
           position: "absolute",
           boxSizing: "border-box",
-          border: `1.5px solid ${FRAME_COLOR}`,
+          border: `1.4px solid ${FRAME_COLOR}`,
           boxShadow: `0 0 0 1px ${FRAME_COLOR}22, 0 0 20px 2px ${FRAME_COLOR}14`,
         }}
       >
@@ -330,7 +330,7 @@ function WatermarkLogo() {
       style={{
         position: "absolute", top: "50%", left: "50%",
         transform: "translate(-50%,-50%)",
-        width: "min(55vw, 520px)",
+        width: "min(55vw, 1020px)",
         zIndex: 1,
         pointerEvents: "auto",
         userSelect: "none",
