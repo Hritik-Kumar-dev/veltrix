@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { FolderOpen, Download, DownloadCloud, Trash2, Image, Tag, ArrowLeft, Loader2, Printer } from 'lucide-react';
+import { FolderOpen, Download, DownloadCloud, Trash2, Tag, ArrowLeft, Loader2, Printer } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import toast from 'react-hot-toast';
@@ -130,8 +130,8 @@ export function Toolbar({
   return (
     <header className="toolbar">
       <div className="toolbar-brand">
-        <Image size={20} className="brand-icon" />
-        <span className="brand-name">BatchCrop</span>
+        <img src="/veltrix_logo.png" alt="VeltriX logo" className="brand-icon brand-logo" />
+        <span className="brand-name">VeltriX</span>
       </div>
 
       {view === 'rename' && (

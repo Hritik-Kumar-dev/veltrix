@@ -89,6 +89,9 @@ type OpenCVInstance = any;
 let cvCache: OpenCVInstance | null = null;
 let cvLoadPromise: Promise<OpenCVInstance> | null = null;
 
+/** Maximum time (ms) to wait for OpenCV.js WASM to finish initialising. */
+const OPENCV_LOAD_TIMEOUT_MS = 20_000;
+
 function loadOpenCV(): Promise<OpenCVInstance> {
   // Already loaded
   if (cvCache) return Promise.resolve(cvCache);
@@ -106,6 +109,26 @@ function loadOpenCV(): Promise<OpenCVInstance> {
       return;
     }
 
+    // Safety timeout — if OpenCV doesn't become ready within the allotted
+    // time we reject so the caller can surface a graceful error rather than
+    // hanging forever.
+    const deadlineTimer = setTimeout(() => {
+      cvLoadPromise = null; // allow retry on next explicit call
+      reject(new Error('[detectDocumentRegion] OpenCV.js timed out during initialisation'));
+    }, OPENCV_LOAD_TIMEOUT_MS);
+
+    const resolveCV = (instance: OpenCVInstance) => {
+      clearTimeout(deadlineTimer);
+      cvCache = instance;
+      resolve(instance);
+    };
+
+    const rejectCV = (err: Error) => {
+      clearTimeout(deadlineTimer);
+      cvLoadPromise = null; // allow retry on next call
+      reject(err);
+    };
+
     const script = document.createElement('script');
     // Use a pinned CDN version so behaviour is reproducible.
     script.src = 'https://docs.opencv.org/4.8.0/opencv.js';
@@ -114,13 +137,14 @@ function loadOpenCV(): Promise<OpenCVInstance> {
     script.onload = () => {
       // OpenCV.js signals readiness via cv['onRuntimeInitialized'] if the
       // WASM runtime hasn't finished yet when the script loads.
+      const pollIntervalMs = 50;
       const check = () => {
         if (w.cv && w.cv.Mat) {
-          cvCache = w.cv;
-          resolve(cvCache);
+          resolveCV(w.cv);
         } else {
-          // WASM still initialising — poll until ready.
-          setTimeout(check, 50);
+          // WASM still initialising — poll until ready (deadline timer will
+          // abort if it takes too long).
+          setTimeout(check, pollIntervalMs);
         }
       };
       // If the runtime is already ready (asm.js build or cached WASM), resolve
@@ -131,8 +155,7 @@ function loadOpenCV(): Promise<OpenCVInstance> {
           const prev = w.cv.onRuntimeInitialized;
           w.cv.onRuntimeInitialized = () => {
             if (typeof prev === 'function') prev();
-            cvCache = w.cv;
-            resolve(cvCache);
+            if (w.cv && w.cv.Mat) resolveCV(w.cv);
           };
           // Fallback poll in case the callback was already fired
           check();
@@ -145,8 +168,7 @@ function loadOpenCV(): Promise<OpenCVInstance> {
     };
 
     script.onerror = () => {
-      cvLoadPromise = null; // allow retry on next call
-      reject(new Error('[detectDocumentRegion] Failed to load OpenCV.js'));
+      rejectCV(new Error('[detectDocumentRegion] Failed to load OpenCV.js — check network connectivity'));
     };
 
     document.head.appendChild(script);
@@ -223,6 +245,15 @@ function orderCorners(pts: Point2D[]): [Point2D, Point2D, Point2D, Point2D] {
 export async function detectDocumentRegion(
   dataUrl: string,
 ): Promise<DocumentCorners | null> {
+  // Collect every OpenCV Mat/MatVector we allocate so we can delete them in
+  // the finally block even if an exception occurs mid-pipeline.
+  const toDelete: Array<{ delete(): void }> = [];
+
+  const alloc = <T extends { delete(): void }>(obj: T): T => {
+    toDelete.push(obj);
+    return obj;
+  };
+
   try {
     // ── Load OpenCV (lazy, cached) ─────────────────────────────────
     const cv = await loadOpenCV();
@@ -233,37 +264,30 @@ export async function detectDocumentRegion(
     const detH = small.height;
 
     // ── Read pixels into OpenCV Mat ────────────────────────────────
-    const src = cv.imread(small);
+    const src = alloc(cv.imread(small));
 
     // ── Grayscale ──────────────────────────────────────────────────
-    const gray = new cv.Mat();
+    const gray = alloc(new cv.Mat());
     cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-    src.delete();
 
     // ── Gaussian blur ──────────────────────────────────────────────
-    const blurred = new cv.Mat();
+    const blurred = alloc(new cv.Mat());
     const ksize   = new cv.Size(BLUR_KSIZE, BLUR_KSIZE);
     cv.GaussianBlur(gray, blurred, ksize, 0);
-    gray.delete();
 
     // ── Canny edge detection ───────────────────────────────────────
-    const edges = new cv.Mat();
+    const edges = alloc(new cv.Mat());
     cv.Canny(blurred, edges, CANNY_LOW, CANNY_HIGH);
-    blurred.delete();
 
     // ── Dilate slightly to close small edge gaps ───────────────────
-    const dilated  = new cv.Mat();
-    const kernel   = cv.Mat.ones(3, 3, cv.CV_8U);
+    const dilated = alloc(new cv.Mat());
+    const kernel  = alloc(cv.Mat.ones(3, 3, cv.CV_8U));
     cv.dilate(edges, dilated, kernel);
-    edges.delete();
-    kernel.delete();
 
     // ── Find contours ──────────────────────────────────────────────
-    const contours  = new cv.MatVector();
-    const hierarchy = new cv.Mat();
+    const contours  = alloc(new cv.MatVector());
+    const hierarchy = alloc(new cv.Mat());
     cv.findContours(dilated, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-    dilated.delete();
-    hierarchy.delete();
 
     // ── Find the best 4-point contour ──────────────────────────────
     const minArea = detW * detH * MIN_AREA_FRACTION;
@@ -280,28 +304,29 @@ export async function detectDocumentRegion(
       }
 
       // approxPolyDP: simplify the contour
-      const peri      = cv.arcLength(contour, true);
-      const approx    = new cv.Mat();
-      cv.approxPolyDP(contour, approx, APPROX_EPSILON_FACTOR * peri, true);
+      const peri   = cv.arcLength(contour, true);
+      const approx = new cv.Mat(); // deleted explicitly below in both branches
 
-      if (approx.rows === 4 && area > bestArea) {
-        // Extract the 4 points (each row has x, y as Int32)
-        const pts: Point2D[] = [];
-        for (let r = 0; r < 4; r++) {
-          pts.push({
-            x: approx.data32S[r * 2],
-            y: approx.data32S[r * 2 + 1],
-          });
+      try {
+        cv.approxPolyDP(contour, approx, APPROX_EPSILON_FACTOR * peri, true);
+
+        if (approx.rows === 4 && area > bestArea) {
+          // Extract the 4 points (each row has x, y as Int32)
+          const pts: Point2D[] = [];
+          for (let r = 0; r < 4; r++) {
+            pts.push({
+              x: approx.data32S[r * 2],
+              y: approx.data32S[r * 2 + 1],
+            });
+          }
+          bestPts  = pts;
+          bestArea = area;
         }
-        bestPts  = pts;
-        bestArea = area;
+      } finally {
+        approx.delete();
+        contour.delete();
       }
-
-      approx.delete();
-      contour.delete();
     }
-
-    contours.delete();
 
     if (!bestPts) return null;
 
@@ -319,5 +344,11 @@ export async function detectDocumentRegion(
   } catch (err) {
     console.warn('[detectDocumentRegion] detection failed:', err);
     return null;
+
+  } finally {
+    // Always free OpenCV memory, even on error paths.
+    for (const mat of toDelete) {
+      try { mat.delete(); } catch { /* already deleted or never allocated */ }
+    }
   }
 }

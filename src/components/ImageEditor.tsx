@@ -298,7 +298,19 @@ export function ImageEditor({
 
     } else {
       // ── Document mode: edge/contour detection ──────────────────
-      const corners = await detectDocumentRegion(dataUrl);
+      let corners: Awaited<ReturnType<typeof detectDocumentRegion>> = null;
+      try {
+        corners = await detectDocumentRegion(dataUrl);
+      } catch (err) {
+        // detectDocumentRegion should never throw (it catches internally),
+        // but guard here as a belt-and-suspenders safety net.
+        console.error('[AutoCrop] document detection unexpected error:', err);
+        setAutoCropStatus({ kind: 'idle' });
+        if (!silent) {
+          toast.error('Document detection failed — please crop manually', { duration: 4000 });
+        }
+        return;
+      }
 
       if (!corners) {
         if (silent) {

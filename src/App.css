@@ -1,4 +1,43 @@
 /* =============================================
+   Custom Fonts
+   ============================================= */
+
+/*
+ * Kola — used exclusively for the VeltriX wordmark (.brand-name).
+ * woff2 > woff > ttf fallback chain for broadest browser support.
+ */
+@font-face {
+  font-family: 'Kola';
+  src:
+    url('./assets/fonts/Kola_Complete/Fonts/WEB/fonts/Kola-Regular.woff2') format('woff2'),
+    url('./assets/fonts/Kola_Complete/Fonts/WEB/fonts/Kola-Regular.woff')  format('woff'),
+    url('./assets/fonts/Kola_Complete/Fonts/WEB/fonts/Kola-Regular.ttf')   format('truetype');
+  font-weight: 400;
+  font-style:  normal;
+  font-display: swap;
+}
+
+/*
+ * Geist Mono — global UI font (variable, covers all weights in one file).
+ * Italic variant registered separately so the browser doesn't synthesise it.
+ */
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('./assets/fonts/Geist_Mono/GeistMono-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style:  normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('./assets/fonts/Geist_Mono/GeistMono-Italic-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style:  italic;
+  font-display: swap;
+}
+
+/* =============================================
    Global Reset & Base
    ============================================= */
 
@@ -56,7 +95,7 @@ html, body, #root {
 body {
   background: var(--bg-base);
   color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Geist Mono', 'Geist Mono Fallback', ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, monospace;
   font-size: 13px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -150,10 +189,18 @@ img {
   color: var(--accent);
 }
 
+.brand-logo {
+  width:  24px;
+  height: 24px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
 .brand-name {
+  font-family: 'Kola', serif;
   font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.3px;
+  font-weight: 400;
+  letter-spacing: 0.5px;
   color: var(--text-primary);
 }
 
